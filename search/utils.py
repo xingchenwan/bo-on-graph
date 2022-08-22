@@ -83,10 +83,10 @@ def generate_neighbors(
     neighbors = torch.tensor(list(nx.all_neighbors(context_graph, int(X)))).to(X_avoid.device)
     valid_neighbors =  filter_invalid(neighbors, X_avoid)
     if stochastic and len(valid_neighbors):
-        return random.choice(valid_neighbors).unsqueeze(1, -1)
+        return random.choice(valid_neighbors).reshape(1, -1)
     return valid_neighbors
 
-
+# todo: local search for optim acq optimization is not thoroughly tested yet.
 def local_search(
         objective_f: Callable,
         context_graph:  Union[nx.Graph, Tuple[torch.Tensor, torch.Tensor]],
