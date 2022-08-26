@@ -52,7 +52,7 @@ def run_one_replication(
     model_kwargs = model_kwargs or {}
 
     if problem_name in all_synthetic_problem_labels:
-        base_function = get_synthetic_problem(problem_name)
+        base_function = get_synthetic_problem(problem_name, seed=seed)
     else:
         raise NotImplementedError() # todo
 
@@ -264,9 +264,9 @@ if __name__ == "__main__":
     save_dir = "./logs/synthetic/"
     for i in range(20):
         run_one_replication(
-            "ei_ego_network_1",
+            label="local_search",
             seed=i,
-            problem_name="small_ba_betweenness",
+            problem_name="diffusion",
             save_path=save_dir,
             batch_size=1,
             n_initial_points=10,

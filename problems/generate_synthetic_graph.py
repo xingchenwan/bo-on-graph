@@ -4,9 +4,12 @@ from typing import Optional, Any, Union, Tuple, Callable
 import numpy as np
 import torch
 from problems.base_problem import Problem
+import ndlib.models.epidemics as ep
+import ndlib.models.ModelConfig as mc
+import random
 
 all_synthetic_problem_labels = [
-    "small_ba_betweenness",
+    "small_ba_betweenness", "diffusion",
 ]
 
 def get_synthetic_problem(
@@ -16,6 +19,20 @@ def get_synthetic_problem(
     if label == "small_ba_betweenness":
         g = generate_random_graph("ba", seed=seed, return_adj_matrix=False, n=1000, m=3)
         ground_truth = compute_synthetic_node_features(g, feature_name="betweenness",)
+        obj_func = lambda idx: ground_truth[idx]
+        return SyntheticProblem(g, obj_func, problem_size=len(g.nodes))
+    elif label == "diffusion":
+        g = generate_random_graph("ba", seed=seed, return_adj_matrix=False, n=1000, m=3)
+        
+        model = ep.SIRModel(g, seed=seed)
+        config = mc.Configuration()
+        config.add_model_parameter('beta', 0.01)
+        config.add_model_parameter('gamma', 0.01)
+
+        config.add_model_parameter("fraction_infected", 0.05)
+        model.set_initial_status(config)
+
+        ground_truth = compute_synthetic_node_features(g, feature_name="diffusion", model = model)
         obj_func = lambda idx: ground_truth[idx]
         return SyntheticProblem(g, obj_func, problem_size=len(g.nodes))
     else:
@@ -77,6 +94,7 @@ def compute_synthetic_node_features(
         input_graph: nx.Graph,
         feature_name: str = "betweenness",
         log: bool = False,
+        model: ep.SIRModel = None,
         **kwargs
 ):
     nnodes = len(input_graph)
@@ -84,6 +102,21 @@ def compute_synthetic_node_features(
         feature = nx.betweenness_centrality(input_graph, **kwargs)
     elif feature_name == "eigenvector_centrality":
         feature = nx.eigenvector_centrality(input_graph, **kwargs)
+    elif feature_name == "diffusion":
+        #initial status
+        feature = dict.fromkeys(range(nnodes),0)
+        iteration = model.iteration()
+        feature = iteration['status']
+        while (iteration['node_count'][1] != 0) and (iteration['iteration'] < 50):
+            iteration = model.iteration()
+            for key, value in iteration['status'].items():
+                if value == 1:
+                    feature[key] = iteration['iteration'] + 1
+        
+        for key, value in feature.items():
+            if value != 0:
+                feature[key] = (1 - (feature[key] - 1)/(iteration['iteration'] + 1))**2
+
     else:
         f = getattr(nx, feature_name, None)
         if f:
@@ -108,7 +141,7 @@ if __name__ == "__main__":
     test_graph = generate_random_graph("ba", seed=0, n=100, m=2)
     features = compute_synthetic_node_features(
         test_graph,
-        "betweenness",
+        "small_ba_betweenness",
         log=True
     )
     dcent_color = [features[i] for i in range(len(features))]
