@@ -11,9 +11,10 @@ for label in labels:
     for i in range(25):
         run_one_replication(
             label=label,
-            seed=i,
-            problem_name="diffusion",
+            seed=seed + i,
+            problem_name="test_function",
             save_path=save_dir,
             batch_size=1,
-            n_initial_points=10,
+            n_initial_points=30,
+            iterations=1000
         )

@@ -9,7 +9,7 @@ import ndlib.models.ModelConfig as mc
 import random
 
 all_synthetic_problem_labels = [
-    "small_ba_betweenness", "diffusion",
+    "small_ba_betweenness", "diffusion", "test_function",
 ]
 
 def get_synthetic_problem(
@@ -26,15 +26,30 @@ def get_synthetic_problem(
         
         model = ep.SIRModel(g, seed=seed)
         config = mc.Configuration()
-        config.add_model_parameter('beta', 0.01)
+        config.add_model_parameter('beta', 0.02)
         config.add_model_parameter('gamma', 0.01)
 
-        config.add_model_parameter("fraction_infected", 0.05)
+        config.add_model_parameter("fraction_infected", 0.005)
         model.set_initial_status(config)
 
         ground_truth = compute_synthetic_node_features(g, feature_name="diffusion", model = model)
         obj_func = lambda idx: ground_truth[idx]
         return SyntheticProblem(g, obj_func, problem_size=len(g.nodes))
+    
+    elif label == "test_function":
+        #todo
+        n, m = 100, 100
+        g = nx.generators.grid_2d_graph(n,m)
+        mapping = {}
+        for i in range(n):
+            for j in range(m):
+                mapping[(i,j)] = i*m + j
+
+        g = nx.relabel_nodes(g, mapping)
+        ground_truth = compute_synthetic_node_features(g, feature_name="test_function", n=n, m=m)
+        obj_func = lambda idx: ground_truth[idx]
+        return SyntheticProblem(g, obj_func, problem_size=len(g.nodes))
+
     else:
         # todo
         raise NotImplementedError(f"Problem {label} is not implemented")
@@ -95,6 +110,8 @@ def compute_synthetic_node_features(
         feature_name: str = "betweenness",
         log: bool = False,
         model: ep.SIRModel = None,
+        n = None,
+        m = None,
         **kwargs
 ):
     nnodes = len(input_graph)
@@ -116,6 +133,12 @@ def compute_synthetic_node_features(
         for key, value in feature.items():
             if value != 0:
                 feature[key] = (1 - (feature[key] - 1)/(iteration['iteration'] + 1))**2
+    elif feature_name == "test_function":
+        feature = dict.fromkeys(range(nnodes),0)
+        rosembrock = lambda x, y: 100*(y - x**2)**2 + (1 - x)**2
+        for i in range(n):
+            for j in range(m):
+                feature[i*m + j] = rosembrock(3 - (4/n)*i, -2 + (4/m)*j)
 
     else:
         f = getattr(nx, feature_name, None)
