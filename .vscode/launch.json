@@ -9,7 +9,7 @@
             "name": "bo on graph",
             "type": "python",
             "request": "launch",
-            "program": "/home/pierre/git/bo-on-graph/main.py",
+            "program": "/home/pierre/git/bo-on-graph/mainplot.py",
             "console": "integratedTerminal",
             "justMyCode": true
         }

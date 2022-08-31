@@ -3,6 +3,9 @@ import networkx as nx
 from typing import Union, Tuple, Callable, Optional
 import torch
 import random
+import numpy as np
+import os
+import matplotlib.pyplot as plt
 
 def eigendecompose_laplacian(
         context_graph: nx.Graph,
@@ -177,3 +180,41 @@ def local_search(
     with torch.no_grad():
         acq_value = objective_f(candidates)  # compute joint acquisition value
     return candidates, acq_value, n_queries
+
+class Plot_animation:
+    def __init__(self, graph, n, ground_truth, save_path = "") -> None:
+        self.graph = graph
+        self.n = n
+        self.ground_truth = ground_truth
+        mapping = {}
+        for i in range(n):
+            for j in range(n):
+                mapping[i*n+j] = np.array([1 - i*2/n, -1 + j*2/n])
+        
+        self.pos = mapping
+
+        self.colors=[float(self.ground_truth(i)) for i in range(n**2)]
+
+        self.save_path = os.path.join("./logs/plot/", save_path)
+        self.iteration = 0
+
+    def add_candidate(self, candidates):
+
+        for candidate in candidates:
+            self.colors[int(candidate[0])] = -3
+
+    def make_plot(self):
+
+        cmap=plt.cm.Blues
+        vmin = min(self.colors)
+        vmax = max(self.colors)
+
+        nx.draw(self.graph, self.pos, node_color=self.colors, cmap=cmap, vmin=vmin, vmax=vmax)
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin = vmin, vmax=vmax))
+        sm._A = []
+        #plt.colorbar(sm)
+        plt.savefig(os.path.join(self.save_path, f"{str(self.iteration).zfill(4)}.png"))
+        self.iteration += 1
+
+    def make_animation(self):
+        return 0

@@ -11,37 +11,46 @@ def main(name):
     problem_name = "diffusion"       # defines the problem
     label = "ei_ego_network_1"                  # defines the method
 
-    labels = ["ei_ego_network_1", "random", "local_search"]    
-    labels = ["local_search"]    
+    labels = ["ei_ego_network_1", "random", "local_search"]
 
-    for label in labels:
-        for i in range(1):
-            run_one_replication(
-                label=label,
-                seed=seed + i,
-                problem_name="diffusion",
-                save_path=save_dir,
-                batch_size=1,
-                n_initial_points=10,
-                iterations=50,
-                animation=True
-            )
+    n_stop = 100
 
-    regret_ego = torch.zeros((10, 60))
-    regret_local = torch.zeros((10, 60))
-    regret_random = torch.zeros((10, 60))
+    regret_ego = torch.zeros((10, n_stop))
+    regret_local = torch.zeros((10, n_stop))
+    regret_random = torch.zeros((10, n_stop))
 
     for i in range(10):
+
         path_ego = os.path.join(save_dir, "ei_ego_network_1/", f"{str(i).zfill(4)}_ei_ego_network_1.pt")
-        regret_ego[i,:] = torch.load(path_ego)["regret"].flatten()[:60]
+        ego_load = torch.load(path_ego)["regret"].flatten()
+        n_ego = int(ego_load.size()[0])
+        if n_ego >= n_stop:
+        
+            regret_ego[i,:] = ego_load[:n_stop]
+        else:
+            regret_ego[i,:n_ego] = ego_load[:n_ego]
+            regret_ego[i,n_ego:] = ego_load[-1]
 
         path_local = os.path.join(save_dir, "local_search/", f"{str(i).zfill(4)}_local_search.pt")
-        regret_local[i,:] = torch.load(path_local)["regret"].flatten()[:60]
+        local_load = torch.load(path_local)["regret"].flatten()
+        n_local = int(local_load.size()[0])
+        if n_local >= n_stop:
+        
+            regret_local[i,:] = local_load[:n_stop]
+        else:
+            regret_local[i,:n_local] = local_load[:n_local]
+            regret_local[i,n_local:] = local_load[-1]
 
-        path_ego = os.path.join(save_dir, "random/", f"{str(i).zfill(4)}_random.pt")
-        regret_random[i,:] = torch.load(path_ego)["regret"].flatten()[:60]
+        path_random = os.path.join(save_dir, "random/", f"{str(i).zfill(4)}_random.pt")
+        random_load = torch.load(path_random)["regret"].flatten()
+        n_random = int(random_load.size()[0])
+        if n_random >= n_stop:
+            regret_random[i,:] = random_load[:n_stop]
+        else:
+            regret_random[i,:n_random] = random_load[:n_random]
+            regret_random[i,n_random:] = random_load[-1]
     
-    x = range(60)
+    x = range(n_stop)
 
     mean_random = pd.DataFrame(regret_random.numpy()).cummin(axis = 1).mean(axis=0)
     std_random = pd.DataFrame(regret_random.numpy()).cummin(axis = 1).std(axis=0)**2
@@ -59,7 +68,7 @@ def main(name):
     plt.fill_between(x, mean_local - std_local, mean_local + std_local, color='green', alpha=0.2)
     plt.legend()
 
-    plt.savefig(os.path.join(save_dir, "plot_result.png"))
+    plt.savefig(os.path.join(save_dir, "plot_resultfull.png"))
 
 if __name__ == '__main__':
 

@@ -8,7 +8,7 @@ from problems import get_synthetic_problem, all_synthetic_problem_labels
 import random
 from search.models import initialize_model, get_acqf, optimize_acqf
 from search.utils import (
-    prune_baseline, generate_neighbors, filter_invalid
+    prune_baseline, generate_neighbors, filter_invalid, Plot_animation
 )
 import os
 
@@ -37,6 +37,7 @@ def run_one_replication(
         prune_points: bool = True,
         save_frequency: int = 1,
         ego_radius: int = 2,
+        animation = False
 ):
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -56,6 +57,10 @@ def run_one_replication(
     else:
         raise NotImplementedError() # todo
 
+    # Plot animation
+    if animation:
+        plot_animation = Plot_animation(base_function.context_graph, 30, base_function.obj_func, save_path=label)
+    
     # generate initial data
     n_initial_points = n_initial_points or 20
     X = torch.randint(
@@ -65,6 +70,9 @@ def run_one_replication(
     X_ = X.clone()
     Y_ = Y.clone()
 
+    if animation:
+        plot_animation.add_candidate(X)    
+        plot_animation.make_plot()
     is_moo = base_function.is_moo
     if is_moo:
         raise NotImplementedError()
@@ -188,6 +196,10 @@ def run_one_replication(
             # the candidates are in terms of the local graph -- map them back to the global graph
             candidates = inverse_index_remapper(raw_candidates).to(X)
 
+        if animation:
+            plot_animation.add_candidate(candidates)
+            plot_animation.make_plot()
+
         # evaluate the problem
         new_y = base_function(candidates)
 
@@ -240,7 +252,8 @@ def run_one_replication(
                 }
                 with open(os.path.join(save_path, f"{str(seed).zfill(4)}_{label}.pt"), "wb") as fp:
                     torch.save(output_dict, fp)
-
+        print(f"Current candidate {candidates}")
+    
     # Save the final output
     if hasattr(base_function, "ground_truth"):
         regret = base_function.ground_truth.cpu() - Y.cpu()

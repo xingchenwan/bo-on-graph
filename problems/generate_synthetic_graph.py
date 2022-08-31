@@ -14,7 +14,8 @@ all_synthetic_problem_labels = [
 
 def get_synthetic_problem(
         label="small_ba_betweenness",
-        seed: int = 0
+        seed: int = 0,
+        n = 30
 ) -> "SyntheticProblem":
     if label == "small_ba_betweenness":
         g = generate_random_graph("ba", seed=seed, return_adj_matrix=False, n=1000, m=3)
@@ -23,13 +24,21 @@ def get_synthetic_problem(
         return SyntheticProblem(g, obj_func, problem_size=len(g.nodes))
     elif label == "diffusion":
         g = generate_random_graph("ba", seed=seed, return_adj_matrix=False, n=1000, m=3)
-        
+        g = nx.generators.grid_2d_graph(n=30, m=30)
+        n,m = 30,30
+        mapping = {}
+        for i in range(n):
+            for j in range(m):
+                mapping[(i,j)] = i*m + j
+
+        g = nx.relabel_nodes(g, mapping)
+
         model = ep.SIRModel(g, seed=seed)
         config = mc.Configuration()
-        config.add_model_parameter('beta', 0.02)
+        config.add_model_parameter('beta', 0.05)
         config.add_model_parameter('gamma', 0.01)
 
-        config.add_model_parameter("fraction_infected", 0.005)
+        config.add_model_parameter("fraction_infected", 0.05)
         model.set_initial_status(config)
 
         ground_truth = compute_synthetic_node_features(g, feature_name="diffusion", model = model)
@@ -38,7 +47,7 @@ def get_synthetic_problem(
     
     elif label == "test_function":
         #todo
-        n, m = 100, 100
+        n, m = n, n
         g = nx.generators.grid_2d_graph(n,m)
         mapping = {}
         for i in range(n):
@@ -135,10 +144,11 @@ def compute_synthetic_node_features(
                 feature[key] = (1 - (feature[key] - 1)/(iteration['iteration'] + 1))**2
     elif feature_name == "test_function":
         feature = dict.fromkeys(range(nnodes),0)
-        rosembrock = lambda x, y: 100*(y - x**2)**2 + (1 - x)**2
+        #rosembrock = lambda x, y: -100*(y - x**2)**2 - (1 - x)**2
+        rosembrock = lambda x, y: -y**2 - x**2 + 10
         for i in range(n):
             for j in range(m):
-                feature[i*m + j] = rosembrock(3 - (4/n)*i, -2 + (4/m)*j)
+                feature[i*m + j] = rosembrock(2 - (4/n)*i, -2 + (4/m)*j)
 
     else:
         f = getattr(nx, feature_name, None)
