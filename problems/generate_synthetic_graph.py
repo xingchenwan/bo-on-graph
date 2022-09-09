@@ -24,14 +24,6 @@ def get_synthetic_problem(
         return SyntheticProblem(g, obj_func, problem_size=len(g.nodes))
     elif label == "diffusion":
         g = generate_random_graph("ba", seed=seed, return_adj_matrix=False, n=1000, m=3)
-        g = nx.generators.grid_2d_graph(n=30, m=30)
-        n,m = 30,30
-        mapping = {}
-        for i in range(n):
-            for j in range(m):
-                mapping[(i,j)] = i*m + j
-
-        g = nx.relabel_nodes(g, mapping)
 
         model = ep.SIRModel(g, seed=seed)
         config = mc.Configuration()
