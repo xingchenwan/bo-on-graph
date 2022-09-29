@@ -19,6 +19,7 @@ from search.trust_region import (
     restart,
 )
 import os
+from botorch.utils.transforms import standardize
 
 supported_labels = [
     "random",
@@ -41,7 +42,7 @@ def run_one_replication(
         context_graph_nnode_init: int = 100,
         acqf_kwargs: Optional[dict] = None,
         acqf_optim_kwargs: Optional[dict] = None,
-        model_kwargs: Optional[Dict[str, Any]] = None,
+        model_optim_kwargs: Optional[Dict[str, Any]] = None,
         trust_region_kwargs: Optional[Dict[str, Any]] = None,
         problem_kwargs: Optional[Dict[str, Any]] = None,
         dtype: torch.dtype = torch.float,
@@ -103,7 +104,7 @@ def run_one_replication(
     tkwargs = {"dtype": dtype, "device": device}
     acqf_optim_kwargs = acqf_optim_kwargs or {}
     acqf_kwargs = acqf_kwargs or {}
-    model_kwargs = model_kwargs or {}
+    model_optim_kwargs = model_optim_kwargs or {}
 
     base_function = get_synthetic_problem(
         problem_name, seed=seed, problem_kwargs=problem_kwargs)
@@ -194,6 +195,8 @@ def run_one_replication(
     use_cached_eigenbasis = True
 
     for i in range(existing_iterations, iterations):
+        if len(X) > iterations * batch_size:
+            break
         print(
             f"Starting label {label}, seed {seed}, iteration {i}, "
             f"time: {time() - start_time}, "
@@ -262,10 +265,14 @@ def run_one_replication(
                     train_X=X_mapped,
                     train_Y=Y_,
                     context_graph=context_graph,
+                    covar_type="polynomial",
+                    ard=True,
+                    use_fixed_noise=True,
+                    use_saas_map=False,
                     fit_model=True,
                     cached_eigenbasis=cached_eigenbasis,
                     use_cached_eigenbasis=use_cached_eigenbasis,
-                    **model_kwargs
+                    optim_kwargs=model_optim_kwargs,
                 )
                 if not is_moo:
                     acq_func = get_acqf(
@@ -310,7 +317,7 @@ def run_one_replication(
         if use_trust_region:
             trust_region_state = update_state(
                 state=trust_region_state,
-                Y_next=candidates
+                Y_next=new_y
             )
 
         X = torch.cat([X, candidates], dim=0)

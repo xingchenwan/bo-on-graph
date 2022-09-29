@@ -74,7 +74,7 @@ if __name__ == '__main__':
 
     # parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default='diffusion_2')
+    parser.add_argument('--config', type=str, default='centrality')
     args = parser.parse_args()
 
     # load parameters

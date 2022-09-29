@@ -12,7 +12,7 @@ from gpytorch.constraints import GreaterThan, Interval
 from gpytorch.priors import GammaPrior
 from gpytorch.mlls import SumMarginalLogLikelihood, ExactMarginalLogLikelihood
 from .kernels import DiffusionGraphKernel, PolynomialKernel
-from .utils import eigendecompose_laplacian, local_search, fit_gpytorch_model, filter_invalid
+from .utils import eigendecompose_laplacian, local_search, fit_gpytorch_model, filter_invalid, gen_k_fold_cv_folds
 from botorch.acquisition import (ExpectedImprovement,
                                  NoisyExpectedImprovement,
                                  qExpectedImprovement,
@@ -22,14 +22,14 @@ from botorch.acquisition import (ExpectedImprovement,
 from botorch.sampling.samplers import SobolQMCNormalSampler
 from math import log
 import botorch
-from botorch.cross_validation import gen_loo_cv_folds, CVFolds
+from botorch.utils.transforms import standardize
 
 
 def initialize_model(
         train_X: torch.Tensor,
         train_Y: torch.Tensor,
         context_graph: nx.Graph,
-        covar_type: str = "diffusion",
+        covar_type: str = "polynomial",
         covar_kwargs: Optional[Dict[str, Any]] = None,
         use_fixed_noise: bool = True,
         fit_model: bool = False,
@@ -39,9 +39,10 @@ def initialize_model(
         use_normalized_laplacian: bool = True,
         use_normalized_eigenvalues: bool = True,
         use_saas_map: bool = False,
-        n_cv_fold: int = 10,
+        n_cv_fold: int = -1,
         taus: Optional[torch.Tensor] = None,
-        **optim_kwargs,
+        optim_kwargs: Optional[Dict[str, Any]] = None,
+        standardize_y: bool = True,
 ):
     if (not use_cached_eigenbasis) or cached_eigenbasis is None:
         laplacian_eigenvals, laplacian_eigenvecs = eigendecompose_laplacian(
@@ -51,9 +52,12 @@ def initialize_model(
     else:
         laplacian_eigenvals, laplacian_eigenvecs = cached_eigenbasis
     cached_eigenbasis = (laplacian_eigenvals, laplacian_eigenvecs)
+    if standardize_y:
+        train_Y = standardize(train_Y.clone())
     if use_fixed_noise:
         train_Yvar = torch.full_like(
             train_Y, 1e-7) * train_Y.std(dim=0).pow(2)
+    covar_kwargs = covar_kwargs or {}
 
     # MAP variant of SAAS-GP. Use a grid of \taus (that determine the scale of the Half-cauchy
     #   prior governing the lengthscales, and then run cross validation to choose the best
@@ -86,7 +90,7 @@ def initialize_model(
                 use_normalized_laplacian=use_normalized_eigenvalues,
                 use_normalized_eigenvalues=use_normalized_eigenvalues,
                 use_saas_map=False,
-                **optim_kwargs
+                optim_kwargs=optim_kwargs
             )
             # compute the LOO/k-fold-CV error and use it as the cost function for model selection
             model.eval()
@@ -98,7 +102,7 @@ def initialize_model(
                 cv_error = ((cv_folds.test_Y.squeeze() -
                             mean.squeeze()) ** 2).mean()
                 errs.append(cv_error)
-            print(f"Tau = {tau}. CV error ={cv_error.item()}")
+            # print(f"Tau = {tau}. CV error ={cv_error.item()}")
         best_idx = torch.stack(errs).argmin().item()
         # choose the best
         tau_best = taus[best_idx]
@@ -119,12 +123,11 @@ def initialize_model(
             use_normalized_laplacian=use_normalized_eigenvalues,
             use_normalized_eigenvalues=use_normalized_eigenvalues,
             use_saas_map=False,
-            **optim_kwargs
+            optim_kwargs=optim_kwargs
         )
         return model, mll, cached_eigenbasis
 
     else:
-
         model_kwargs = []
         base_model_class = FixedNoiseGP if (
             use_fixed_noise and not torch.isnan(train_Yvar).any()) else SingleTaskGP
@@ -135,9 +138,16 @@ def initialize_model(
             elif covar_type == "diffusion":
                 base_covar_class = DiffusionGraphKernel
             order = covar_kwargs.get("order", None)
+            # when order is not explicitly specified,
+            if covar_type == "diffusion":
+                order = min(
+                    order, train_X.shape[-2]) if order else int(train_X.shape[-2] // 2)
+            elif covar_type == "polynomial":
+                order = min(order, nx.radius(context_graph)
+                            ) if order else min(5, nx.radius(context_graph))
+
             if ard:
-                ard_num_dims = min(order, len(context_graph)
-                                   ) if order else len(context_graph)
+                ard_num_dims = order
             else:
                 ard_num_dims = None
             covar_kwargs.update({"ard_num_dims": ard_num_dims, "order": order})
@@ -148,31 +158,36 @@ def initialize_model(
         if "lengthscale_constraint" not in covar_kwargs.keys():
             covar_kwargs["lengthscale_constraint"] = GreaterThan(1e-5)
 
-        for i in range(train_Y.shape[-1]):
-            model_kwargs.append(
-                {
-                    "train_X": train_X,
-                    "train_Y": train_Y[..., i: i + 1],
-                    # "outcome_transform": Standardize(m=1),
-                    "covar_module":
-                    gpytorch.kernels.ScaleKernel(
-                        base_covar_class(
-                            eigenvalues=laplacian_eigenvals,
-                            eigenbasis=laplacian_eigenvecs,
-                            **covar_kwargs
-                        )
+        if train_Y.shape[-1] > 1:
+            raise NotImplementedError(f"Multi - objective search is not currently supported."
+                                      "train_Y has last dimension"
+                                      "of {train_Y.shape[-1]}!")
+        model_kwargs.append(
+            {
+                "train_X": train_X,
+                "train_Y": train_Y,
+                # "outcome_transform": Standardize(m=1),
+                "covar_module":
+                gpytorch.kernels.ScaleKernel(
+                    base_covar_class(
+                        eigenvalues=laplacian_eigenvals,
+                        eigenbasis=laplacian_eigenvecs,
+                        **covar_kwargs
                     )
-                }
-            )
-            if use_fixed_noise and not torch.isnan(train_Yvar).any():
-                model_kwargs[i]["train_Yvar"] = train_Yvar[..., i: i + 1]
-            else:
-                model_kwargs[i]["likelihood"] = GaussianLikelihood(
-                    noise_prior=GammaPrior(0.9, 10.0),
-                    noise_constraint=Interval(1e-7, 1e-3)
                 )
+            }
+        )
+        if use_fixed_noise and not torch.isnan(train_Yvar).any():
+            model_kwargs[0]["train_Yvar"] = train_Yvar
+        else:
+            model_kwargs[0]["likelihood"] = GaussianLikelihood(
+                noise_prior=GammaPrior(0.9, 10.0),
+                noise_constraint=Interval(1e-7, 1e-3)
+            )
+
+        # create model
         models = [base_model_class(**model_kwargs[i])
-                  for i in range(train_Y.shape[-1])]
+                  for i in range(len(model_kwargs))]
         if len(models) > 1:
             model = ModelListGP(*models).to(device=train_X.device)
             mll = SumMarginalLogLikelihood(
@@ -183,10 +198,9 @@ def initialize_model(
                 model.likelihood, model).to(device=train_X.device)
         if fit_model:
             with gpytorch.settings.debug(False):
-                # fit_gpytorch_torch(
-                #     mll, )
                 fit_gpytorch_model(mll, model, train_X,
                                    train_Y, **optim_kwargs)
+
     return model, mll, cached_eigenbasis
 
 
@@ -287,48 +301,3 @@ def optimize_acqf(
         ).tolist()
     # nodes_to_eval = torch.cat(nodes_to_eval)
     return torch.tensor(nodes_to_eval)
-
-
-def gen_k_fold_cv_folds(
-    train_X: torch.Tensor, train_Y: torch.Tensor, train_Yvar: Optional[torch.Tensor] = None, fold: int = -1
-):
-    """
-    A generalization of the LOO-CV function in botorch by supporting k-fold CV.
-    """
-    # fold == -1 for LOO-CV
-    if fold == -1 or fold == train_X.shape[-2]:
-        return gen_loo_cv_folds(train_X=train_X, train_Y=train_Y, train_Yvar=train_Yvar)
-
-    masks = torch.zeros(
-        fold, train_X.shape[-2], dtype=torch.uint8, device=train_X.device)
-    splitted_indices = np.array_split(np.arange(train_X.shape[-2]), fold)
-    for i in range(fold):
-        masks[i, splitted_indices[i].tolist()] = 1
-    train_X_cv = torch.cat(
-        [train_X[..., ~m, :].unsqueeze(dim=-3) for m in masks], dim=-3
-    )
-    test_X_cv = torch.cat([train_X[..., m, :].unsqueeze(dim=-3)
-                          for m in masks], dim=-3)
-    train_Y_cv = torch.cat(
-        [train_Y[..., ~m, :].unsqueeze(dim=-3) for m in masks], dim=-3
-    )
-    test_Y_cv = torch.cat([train_Y[..., m, :].unsqueeze(dim=-3)
-                          for m in masks], dim=-3)
-    if train_Yvar is None:
-        train_Yvar_cv = None
-        test_Yvar_cv = None
-    else:
-        train_Yvar_cv = torch.cat(
-            [train_Yvar[..., ~m, :].unsqueeze(dim=-3) for m in masks], dim=-3
-        )
-        test_Yvar_cv = torch.cat(
-            [train_Yvar[..., m, :].unsqueeze(dim=-3) for m in masks], dim=-3
-        )
-    return CVFolds(
-        train_X=train_X_cv,
-        test_X=test_X_cv,
-        train_Y=train_Y_cv,
-        test_Y=test_Y_cv,
-        train_Yvar=train_Yvar_cv,
-        test_Yvar=test_Yvar_cv,
-    )

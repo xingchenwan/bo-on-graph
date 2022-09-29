@@ -40,4 +40,5 @@ class Problem:
         if self.log:
             f = torch.log(f)
             # f = torch.log(f + 1e-4)
+        f += 1e-6 * torch.randn_like(f)
         return f if batch else f.squeeze(0)

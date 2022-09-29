@@ -1,3 +1,4 @@
+
 import gpytorch.settings
 import networkx as nx
 from typing import Union, Tuple, Callable, Optional
@@ -6,7 +7,7 @@ import random
 import numpy as np
 import os
 import matplotlib.pyplot as plt
-from gpytorch.constraints import Interval
+from botorch.cross_validation import gen_loo_cv_folds, CVFolds
 
 
 def eigendecompose_laplacian(
@@ -53,7 +54,7 @@ def fit_gpytorch_model(mll, model, train_x, train_y,
             # Output from model
             output = model(train_x)
             # Calc loss and backprop gradients
-            loss = -mll(output, train_y.squeeze(-1))
+            loss = -mll(output, model.train_targets)
             if loss.ndim > 0:
                 loss = loss.sum()
             loss.backward()
@@ -303,7 +304,47 @@ class Plot_animation:
         return 0
 
 
-class Round(Interval):
+def gen_k_fold_cv_folds(
+    train_X: torch.Tensor, train_Y: torch.Tensor, train_Yvar: Optional[torch.Tensor] = None, fold: int = -1
+):
+    """
+    A generalization of the LOO-CV function in botorch by supporting k-fold CV.
+    """
+    # fold == -1 for LOO-CV
+    if fold == -1 or fold == train_X.shape[-2]:
+        return gen_loo_cv_folds(train_X=train_X, train_Y=train_Y, train_Yvar=train_Yvar)
 
-    def __init__(self, lower) -> None:
-        super().__init__()
+    masks = torch.zeros(
+        fold, train_X.shape[-2], dtype=torch.uint8, device=train_X.device)
+    splitted_indices = np.array_split(np.arange(train_X.shape[-2]), fold)
+    for i in range(fold):
+        masks[i, splitted_indices[i].tolist()] = 1
+    print(masks)
+    train_X_cv = torch.cat(
+        [train_X[..., ~m, :].unsqueeze(dim=-3) for m in masks], dim=-3
+    )
+    test_X_cv = torch.cat([train_X[..., m, :].unsqueeze(dim=-3)
+                           for m in masks], dim=-3)
+    train_Y_cv = torch.cat(
+        [train_Y[..., ~m, :].unsqueeze(dim=-3) for m in masks], dim=-3
+    )
+    test_Y_cv = torch.cat([train_Y[..., m, :].unsqueeze(dim=-3)
+                           for m in masks], dim=-3)
+    if train_Yvar is None:
+        train_Yvar_cv = None
+        test_Yvar_cv = None
+    else:
+        train_Yvar_cv = torch.cat(
+            [train_Yvar[..., ~m, :].unsqueeze(dim=-3) for m in masks], dim=-3
+        )
+        test_Yvar_cv = torch.cat(
+            [train_Yvar[..., m, :].unsqueeze(dim=-3) for m in masks], dim=-3
+        )
+    return CVFolds(
+        train_X=train_X_cv,
+        test_X=test_X_cv,
+        train_Y=train_Y_cv,
+        test_Y=test_Y_cv,
+        train_Yvar=train_Yvar_cv,
+        test_Yvar=test_Yvar_cv,
+    )

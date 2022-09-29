@@ -40,17 +40,20 @@ class DiffusionGraphKernel(Kernel):
     def get_dist(self):
         order = min(
             self.order, self.eigenvalues.shape[0]) if self.order else self.eigenvalues.shape[0]
+        effective_eigenvalues = self.eigenvalues[:order]
 
-        dists = torch.diag(
-            (
-                torch.exp(-self.eigenvalues[:order] /
-                          (2 * self.lengthscale ** 2))
-            ).squeeze()
-        )
-        dists *= order / torch.sum(dists)
+        dists = (
+            torch.exp(-effective_eigenvalues *
+                      self.lengthscale))
+
+        if order > 1:
+            dists = torch.diag(dists.squeeze())
+            dists *= order / torch.sum(dists)
+        # else:
+        #     dists = dists.unsqueeze(0)
         return dists
 
-    def forward(self, x1, x2, diag=False, last_dim_is_batch=False, **params):
+    def forward(self, x1, x2, diag=False, **params):
         """
         x1: torch.Tensor of shape (b1 x ... x bn x n x 1): each element is a vertice index.
         x2: torch.Tensor of shape (b1 x ... x bn x m x 1): each element is a vertice index.
@@ -86,15 +89,15 @@ class PolynomialKernel(DiffusionGraphKernel):
     has_lengthscale = True
 
     def get_dist(self):
-        order = min(
-            self.order, self.eigenvalues.shape[0]) if self.order else self.eigenvalues.shape[0]
-        eigen_powered = torch.cat(
-            [(eig ** i).reshape(-1, 1)
-             for i, eig in enumerate(self.eigenvalues[:order])]
-        ).reshape(1, -1).to(self.eigenvalues)
-        eigen_powered *= torch.exp(-self.lengthscale)
-        dists = torch.diag(eigen_powered.squeeze())
-        dists *= order / torch.sum(dists)
+        epsilon = 1e-6
+        eigen_powered = torch.stack(
+            [self.eigenvalues ** i for i in range(self.order)]
+        )
+
+        dists = 1. / (torch.einsum("ij,i->ij", eigen_powered,
+                                   self.lengthscale.squeeze(0)) + epsilon)
+        dists = torch.diag(dists.sum(0).squeeze())
+        dists *= self.eigenvalues.shape[0] / torch.sum(dists)
         return dists
 
     def forward(self, x1, x2, diag=False, **params):
@@ -109,14 +112,12 @@ class PolynomialKernel(DiffusionGraphKernel):
             raise ValueError(
                 "Eigendecomposition of Laplacian is not performed!")
         assert x1.shape[-1] == 1 and x2.shape[-1] == 1
-        order = min(
-            self.order, self.eigenvalues.shape[0]) if self.order else self.eigenvalues.shape[0]
         x1_ = x1.long().squeeze(-1)
         x2_ = x2.long().squeeze(-1)
         # b1 x ...x bn x n x N
-        subvec1 = self.eigenbasis[x1_, :order]
+        subvec1 = self.eigenbasis[x1_, ...]
         # b1 x ...x bn x m x N
-        subvec2 = self.eigenbasis[x2_, :order]
+        subvec2 = self.eigenbasis[x2_, ...]
         dists = self.get_dist()     # N x N
         self._dists = torch.diagonal(dists.clone(), 0)
 
