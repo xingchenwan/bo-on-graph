@@ -4,93 +4,79 @@ import torch
 import matplotlib.pyplot as plt
 import argparse
 import os
-import yaml
+import numpy as np
+import utils.config_utils as config_utils
+
 
 def main(config):
 
-    save_dir = config["save_dir"]
     seed = 0
     problem_name = config["problem_name"]       # defines the problem
-    labels = config["label"]                  # defines the method 
-    n_exp = config["n_exp"]
-    n_stop = config["plot"]["n_stop"]
+    labels = config["label"]                  # defines the method
+    # save_dir = os.path.join(config.save_dir, problem_name)
+    save_dir = config.save_dir
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    n_exp = getattr(config, "n_exp", 10)
+    plot_result = getattr(config, "plot_result", False)
+    animate = getattr(config, "animate", False)
+    all_data_over_labels = {l: [] for l in labels}
 
-    for label in labels:
+    assert hasattr(config, "bo_settings")
+
+    for label_idx, label in enumerate(labels):
+        all_data = all_data_over_labels[label]
         for i in range(n_exp):
             run_one_replication(
                 label=label,
                 seed=seed + i,
                 problem_name=problem_name,
                 save_path=save_dir,
-                batch_size=1,
-                n_initial_points=10,
-                iterations=50,
-                animation=False
+                batch_size=getattr(config.bo_settings, "batch_size", 1),
+                n_initial_points=getattr(config.bo_settings, "n_init", 10),
+                iterations=getattr(config.bo_settings, "max_iters", 50),
+                max_radius=getattr(config.bo_settings, "max_radius", 10),
+                context_graph_nnode_init=getattr(
+                    config.bo_settings, "context_graph_nnode_init", 100),
+                animation=animate,
+                trust_region_kwargs=getattr(
+                    config.bo_settings, "tr_settings", None),
+                problem_kwargs=getattr(config, "problem_settings", None),
             )
 
-        regret_ego = torch.zeros((n_exp, n_stop))
-        regret_local = torch.zeros((n_exp, n_stop))
-        regret_random = torch.zeros((n_exp, n_stop))
+            load_path = os.path.join(
+                save_dir, label, f"{str(i).zfill(4)}_{label}.pt")
+            data = torch.load(load_path)["regret"].flatten().numpy()
+            all_data.append(data)
+        n_data_per_trial = np.array([len(d) for d in all_data])
 
-        for i in range(n_exp):
+        # whether the data are rugged
+        if len(np.unique(n_data_per_trial)) > 1:
+            # pad as appropriate
+            max_len = max(n_data_per_trial)
+            for i, d in enumerate(all_data):
+                all_data[i] = np.concatenate((
+                    d, d[-1] * np.ones(max_len - d.shape[0])))
+        all_data = np.array(all_data)
 
-            path_ego = os.path.join(save_dir, "ei_ego_network_1/", f"{str(i).zfill(4)}_ei_ego_network_1.pt")
-            ego_load = torch.load(path_ego)["regret"].flatten()
-            n_ego = int(ego_load.size()[0])
-            if n_ego >= n_stop:
-            
-                regret_ego[i,:] = ego_load[:n_stop]
-            else:
-                regret_ego[i,:n_ego] = ego_load[:n_ego]
-                regret_ego[i,n_ego:] = ego_load[-1]
+        if plot_result:
+            x = np.arange(all_data.shape[1])
+            mean = pd.DataFrame(all_data).cummin(axis=1).mean(axis=0)
+            std = pd.DataFrame(all_data).cummin(axis=1).std(axis=0)
+            plt.plot(x, mean, ".-", label=label, color=f'C{label_idx}')
+            plt.fill_between(x, mean - std, mean + std,
+                             color=f'C{label_idx}', alpha=0.2)
+            plt.legend()
+            plt.savefig(os.path.join(save_dir, "plot_result.png",),)
 
-            path_local = os.path.join(save_dir, "local_search/", f"{str(i).zfill(4)}_local_search.pt")
-            local_load = torch.load(path_local)["regret"].flatten()
-            n_local = int(local_load.size()[0])
-            if n_local >= n_stop:
-            
-                regret_local[i,:] = local_load[:n_stop]
-            else:
-                regret_local[i,:n_local] = local_load[:n_local]
-                regret_local[i,n_local:] = local_load[-1]
-
-            path_random = os.path.join(save_dir, "random/", f"{str(i).zfill(4)}_random.pt")
-            random_load = torch.load(path_random)["regret"].flatten()
-            n_random = int(random_load.size()[0])
-            if n_random >= n_stop:
-                regret_random[i,:] = random_load[:n_stop]
-            else:
-                regret_random[i,:n_random] = random_load[:n_random]
-                regret_random[i,n_random:] = random_load[-1]
-    
-    x = range(n_stop)
-
-    mean_random = pd.DataFrame(regret_random.numpy()).cummin(axis = 1).mean(axis=0)
-    std_random = pd.DataFrame(regret_random.numpy()).cummin(axis = 1).std(axis=0)**2
-    plt.plot(x, pd.DataFrame(regret_random.numpy()).cummin(axis = 1).mean(axis=0), label="random")
-    plt.fill_between(x, mean_random - std_random, mean_random + std_random, color='blue', alpha=0.2)
-
-    mean_ego = pd.DataFrame(regret_ego.numpy()).cummin(axis = 1).mean(axis=0)
-    std_ego = pd.DataFrame(regret_ego.numpy()).cummin(axis = 1).std(axis=0)**2
-    plt.plot(x, pd.DataFrame(regret_ego.numpy()).cummin(axis = 1).mean(axis=0), label="ego")
-    plt.fill_between(x, mean_ego - std_ego, mean_ego + std_ego, color='red', alpha=0.2)
-
-    mean_local = pd.DataFrame(regret_local.numpy()).cummin(axis = 1).mean(axis=0)
-    std_local = pd.DataFrame(regret_local.numpy()).cummin(axis = 1).std(axis=0)**2
-    plt.plot(x, pd.DataFrame(regret_local.numpy()).cummin(axis = 1).mean(axis=0), label="local")
-    plt.fill_between(x, mean_local - std_local, mean_local + std_local, color='green', alpha=0.2)
-    plt.legend()
-
-    plt.savefig(os.path.join(save_dir, "plot_result.png"))
 
 if __name__ == '__main__':
 
     # parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default='config1')
+    parser.add_argument('--config', type=str, default='diffusion_2')
     args = parser.parse_args()
 
     # load parameters
-    config = yaml.safe_load(open(f'config/{args.config}.yaml'))
-
+    config = config_utils.setup(f'config/{args.config}.yaml')
     main(config)

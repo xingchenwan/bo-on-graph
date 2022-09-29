@@ -1,3 +1,4 @@
+import numpy as np
 from torch import Tensor
 import torch
 from typing import Tuple, Union, Optional, Dict, Any
@@ -10,8 +11,8 @@ from gpytorch.likelihoods import GaussianLikelihood
 from gpytorch.constraints import GreaterThan, Interval
 from gpytorch.priors import GammaPrior
 from gpytorch.mlls import SumMarginalLogLikelihood, ExactMarginalLogLikelihood
-from .kernels import DiffusionGraphKernel
-from .utils import eigendecompose_laplacian, local_search, fit_gpytorch_model
+from .kernels import DiffusionGraphKernel, PolynomialKernel
+from .utils import eigendecompose_laplacian, local_search, fit_gpytorch_model, filter_invalid
 from botorch.acquisition import (ExpectedImprovement,
                                  NoisyExpectedImprovement,
                                  qExpectedImprovement,
@@ -21,60 +22,171 @@ from botorch.acquisition import (ExpectedImprovement,
 from botorch.sampling.samplers import SobolQMCNormalSampler
 from math import log
 import botorch
+from botorch.cross_validation import gen_loo_cv_folds, CVFolds
+
 
 def initialize_model(
         train_X: torch.Tensor,
         train_Y: torch.Tensor,
         context_graph: nx.Graph,
+        covar_type: str = "diffusion",
+        covar_kwargs: Optional[Dict[str, Any]] = None,
         use_fixed_noise: bool = True,
         fit_model: bool = False,
         ard: bool = False,
         cached_eigenbasis: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
         use_cached_eigenbasis: bool = True,
-        **optim_kwargs
+        use_normalized_laplacian: bool = True,
+        use_normalized_eigenvalues: bool = True,
+        use_saas_map: bool = False,
+        n_cv_fold: int = 10,
+        taus: Optional[torch.Tensor] = None,
+        **optim_kwargs,
 ):
     if (not use_cached_eigenbasis) or cached_eigenbasis is None:
-        laplacian_eigenvals, laplacian_eigenvecs = eigendecompose_laplacian(context_graph)
+        laplacian_eigenvals, laplacian_eigenvecs = eigendecompose_laplacian(
+            context_graph,
+            normalized_laplacian=use_normalized_laplacian,
+            normalized_eigenvalues=use_normalized_eigenvalues,)
     else:
-        laplacian_eigenvals, laplacian_eigenvecs = use_cached_eigenbasis
-        cached_eigenbasis = (laplacian_eigenvals, laplacian_eigenvecs)
+        laplacian_eigenvals, laplacian_eigenvecs = cached_eigenbasis
+    cached_eigenbasis = (laplacian_eigenvals, laplacian_eigenvecs)
     if use_fixed_noise:
-        train_Yvar = torch.full_like(train_Y, 1e-7) * train_Y.std(dim=0).pow(2)
-    model_kwargs = []
-    base_model_class = FixedNoiseGP if (use_fixed_noise and not torch.isnan(train_Yvar).any()) else SingleTaskGP
+        train_Yvar = torch.full_like(
+            train_Y, 1e-7) * train_Y.std(dim=0).pow(2)
 
-    for i in range(train_Y.shape[-1]):
-        model_kwargs.append(
-            {
-                "train_X": train_X,
-                "train_Y": train_Y[..., i: i + 1],
-                "outcome_transform": Standardize(m=1),
-                "covar_module": gpytorch.kernels.ScaleKernel(
-                    DiffusionGraphKernel(
-                    eigenvalues=laplacian_eigenvals,
-                    eigenbasis=laplacian_eigenvecs,
-                    lengthscale_constraint=GreaterThan(1e-5),
-                    ard_num_dims=len(context_graph) if ard else None,
-                    )
-                )
-            }
-        )
-        if use_fixed_noise and not torch.isnan(train_Yvar).any():
-            model_kwargs[i]["train_Yvar"] = train_Yvar[..., i: i + 1]
-        else:
-            model_kwargs[i]["likelihood"] = GaussianLikelihood(
-                noise_prior=GammaPrior(0.9, 10.0),
-                noise_constraint=Interval(1e-7, 1e-3)
+    # MAP variant of SAAS-GP. Use a grid of \taus (that determine the scale of the Half-cauchy
+    #   prior governing the lengthscales, and then run cross validation to choose the best
+    #   model.
+    if use_saas_map:
+        cv_folds = gen_k_fold_cv_folds(
+            train_X=train_X,
+            train_Y=train_Y,
+            train_Yvar=train_Yvar if (
+                use_fixed_noise and not torch.isnan(train_Yvar).any()) else None,
+            fold=n_cv_fold)
+
+        taus = taus if taus is not None else torch.tensor(
+            [10 ** i for i in range(-4, 1)])
+        errs = []
+        for i, tau in enumerate(taus):
+            covar_kwargs.update(
+                {"lengthscale_prior": gpytorch.priors.HalfCauchyPrior(tau)})
+            model, mll, _ = initialize_model(
+                train_X=cv_folds.train_X,
+                train_Y=cv_folds.train_Y,
+                context_graph=context_graph,
+                covar_type=covar_type,
+                covar_kwargs=covar_kwargs,
+                use_fixed_noise=use_fixed_noise,
+                fit_model=True,
+                ard=ard,
+                cached_eigenbasis=cached_eigenbasis,
+                use_cached_eigenbasis=True,
+                use_normalized_laplacian=use_normalized_eigenvalues,
+                use_normalized_eigenvalues=use_normalized_eigenvalues,
+                use_saas_map=False,
+                **optim_kwargs
             )
-    models = [base_model_class(**model_kwargs[i]) for i in range(train_Y.shape[-1])]
-    if len(models) > 1:
-        model = ModelListGP(*models).to(device=train_X.device)
-        mll = SumMarginalLogLikelihood(model.likelihood, model).to(device=train_X.device)
+            # compute the LOO/k-fold-CV error and use it as the cost function for model selection
+            model.eval()
+            with torch.no_grad():
+                posterior = model.posterior(
+                    cv_folds.test_X,
+                )
+                mean = posterior.mean
+                cv_error = ((cv_folds.test_Y.squeeze() -
+                            mean.squeeze()) ** 2).mean()
+                errs.append(cv_error)
+            print(f"Tau = {tau}. CV error ={cv_error.item()}")
+        best_idx = torch.stack(errs).argmin().item()
+        # choose the best
+        tau_best = taus[best_idx]
+        # retrain on the full data
+        covar_kwargs.update(
+            {"lengthscale_prior": gpytorch.priors.HalfCauchyPrior(tau_best)})
+        model, mll, _ = initialize_model(
+            train_X=train_X,
+            train_Y=train_Y,
+            context_graph=context_graph,
+            covar_type=covar_type,
+            covar_kwargs=covar_kwargs,
+            use_fixed_noise=use_fixed_noise,
+            fit_model=True,
+            ard=ard,
+            cached_eigenbasis=cached_eigenbasis,
+            use_cached_eigenbasis=True,
+            use_normalized_laplacian=use_normalized_eigenvalues,
+            use_normalized_eigenvalues=use_normalized_eigenvalues,
+            use_saas_map=False,
+            **optim_kwargs
+        )
+        return model, mll, cached_eigenbasis
+
     else:
-        model = models[0].to(device=train_X.device)
-        mll = ExactMarginalLogLikelihood(model.likelihood, model).to(device=train_X.device)
-    if fit_model:
-        fit_gpytorch_model(mll, model, train_X, train_Y, **optim_kwargs)
+
+        model_kwargs = []
+        base_model_class = FixedNoiseGP if (
+            use_fixed_noise and not torch.isnan(train_Yvar).any()) else SingleTaskGP
+        covar_kwargs = covar_kwargs or {}
+        if covar_type in ["polynomial", "diffusion"]:
+            if covar_type == "polynomial":
+                base_covar_class = PolynomialKernel
+            elif covar_type == "diffusion":
+                base_covar_class = DiffusionGraphKernel
+            order = covar_kwargs.get("order", None)
+            if ard:
+                ard_num_dims = min(order, len(context_graph)
+                                   ) if order else len(context_graph)
+            else:
+                ard_num_dims = None
+            covar_kwargs.update({"ard_num_dims": ard_num_dims, "order": order})
+        else:
+            raise NotImplementedError(
+                f"covar_type {covar_type} is not implemented.")
+
+        if "lengthscale_constraint" not in covar_kwargs.keys():
+            covar_kwargs["lengthscale_constraint"] = GreaterThan(1e-5)
+
+        for i in range(train_Y.shape[-1]):
+            model_kwargs.append(
+                {
+                    "train_X": train_X,
+                    "train_Y": train_Y[..., i: i + 1],
+                    # "outcome_transform": Standardize(m=1),
+                    "covar_module":
+                    gpytorch.kernels.ScaleKernel(
+                        base_covar_class(
+                            eigenvalues=laplacian_eigenvals,
+                            eigenbasis=laplacian_eigenvecs,
+                            **covar_kwargs
+                        )
+                    )
+                }
+            )
+            if use_fixed_noise and not torch.isnan(train_Yvar).any():
+                model_kwargs[i]["train_Yvar"] = train_Yvar[..., i: i + 1]
+            else:
+                model_kwargs[i]["likelihood"] = GaussianLikelihood(
+                    noise_prior=GammaPrior(0.9, 10.0),
+                    noise_constraint=Interval(1e-7, 1e-3)
+                )
+        models = [base_model_class(**model_kwargs[i])
+                  for i in range(train_Y.shape[-1])]
+        if len(models) > 1:
+            model = ModelListGP(*models).to(device=train_X.device)
+            mll = SumMarginalLogLikelihood(
+                model.likelihood, model).to(device=train_X.device)
+        else:
+            model = models[0].to(device=train_X.device)
+            mll = ExactMarginalLogLikelihood(
+                model.likelihood, model).to(device=train_X.device)
+        if fit_model:
+            with gpytorch.settings.debug(False):
+                # fit_gpytorch_torch(
+                #     mll, )
+                fit_gpytorch_model(mll, model, train_X,
+                                   train_Y, **optim_kwargs)
     return model, mll, cached_eigenbasis
 
 
@@ -102,7 +214,8 @@ def get_acqf(
             if acq_type == "ei":
                 acq_func = ExpectedImprovement(model, best_f=train_Y.max(), )
             elif acq_type == 'nei':
-                acq_func = NoisyExpectedImprovement(model, X_observed=X_baseline)
+                acq_func = NoisyExpectedImprovement(
+                    model, X_observed=X_baseline)
             elif acq_type == "ucb":
 
                 acq_func = UpperConfidenceBound(model, beta=beta, )
@@ -110,7 +223,8 @@ def get_acqf(
             if acq_type == "ei":
                 acq_func = qExpectedImprovement(model=model,
                                                 best_f=train_Y.max(),
-                                                sampler=SobolQMCNormalSampler(mc_samples)
+                                                sampler=SobolQMCNormalSampler(
+                                                    mc_samples)
                                                 )
             elif acq_type == "nei":
                 acq_func = qNoisyExpectedImprovement(
@@ -122,11 +236,13 @@ def get_acqf(
             elif acq_type == "ucb":
                 acq_func = qUpperConfidenceBound(model=model,
                                                  beta=beta,
-                                                 sampler=SobolQMCNormalSampler(mc_samples)
+                                                 sampler=SobolQMCNormalSampler(
+                                                     mc_samples)
                                                  )
     elif acq_type == "ehvi":
         assert ref_point is not None
-        raise NotImplementedError()     # todo: support vector-valued output function.
+        # todo: support vector-valued output function.
+        raise NotImplementedError()
     return acq_func
 
 
@@ -136,6 +252,7 @@ def optimize_acqf(
         method: str = "enumerate",
         batch_size: int = 1,
         options: Optional[Dict[str, Any]] = None,
+        X_avoid: Optional[torch.Tensor] = None,
 ):
     assert method in ["enumerate", "local_search"]
     nodes_to_eval = []
@@ -146,12 +263,16 @@ def optimize_acqf(
         else:
             nnodes = context_graph[0].shape[0]
         all_possible_nodes = torch.arange(nnodes).reshape(-1, 1)
+        if X_avoid is not None:
+            all_possible_nodes = filter_invalid(all_possible_nodes, X_avoid)
+            if not all_possible_nodes.shape[0]:
+                return None
         for q in range(batch_size):
             acqf_vals = acqf(all_possible_nodes.unsqueeze(1))
             best_node = torch.argmax(acqf_vals).item()
-            nodes_to_eval.append(best_node)
+            nodes_to_eval.append(all_possible_nodes[best_node])
             if batch_size > 1:
-                acqf.set_X_pending(best_node)
+                acqf.set_X_pending(all_possible_nodes[best_node])
     elif method == "local_search":
         default_options = {
             "num_restarts": 5,
@@ -167,3 +288,47 @@ def optimize_acqf(
     # nodes_to_eval = torch.cat(nodes_to_eval)
     return torch.tensor(nodes_to_eval)
 
+
+def gen_k_fold_cv_folds(
+    train_X: torch.Tensor, train_Y: torch.Tensor, train_Yvar: Optional[torch.Tensor] = None, fold: int = -1
+):
+    """
+    A generalization of the LOO-CV function in botorch by supporting k-fold CV.
+    """
+    # fold == -1 for LOO-CV
+    if fold == -1 or fold == train_X.shape[-2]:
+        return gen_loo_cv_folds(train_X=train_X, train_Y=train_Y, train_Yvar=train_Yvar)
+
+    masks = torch.zeros(
+        fold, train_X.shape[-2], dtype=torch.uint8, device=train_X.device)
+    splitted_indices = np.array_split(np.arange(train_X.shape[-2]), fold)
+    for i in range(fold):
+        masks[i, splitted_indices[i].tolist()] = 1
+    train_X_cv = torch.cat(
+        [train_X[..., ~m, :].unsqueeze(dim=-3) for m in masks], dim=-3
+    )
+    test_X_cv = torch.cat([train_X[..., m, :].unsqueeze(dim=-3)
+                          for m in masks], dim=-3)
+    train_Y_cv = torch.cat(
+        [train_Y[..., ~m, :].unsqueeze(dim=-3) for m in masks], dim=-3
+    )
+    test_Y_cv = torch.cat([train_Y[..., m, :].unsqueeze(dim=-3)
+                          for m in masks], dim=-3)
+    if train_Yvar is None:
+        train_Yvar_cv = None
+        test_Yvar_cv = None
+    else:
+        train_Yvar_cv = torch.cat(
+            [train_Yvar[..., ~m, :].unsqueeze(dim=-3) for m in masks], dim=-3
+        )
+        test_Yvar_cv = torch.cat(
+            [train_Yvar[..., m, :].unsqueeze(dim=-3) for m in masks], dim=-3
+        )
+    return CVFolds(
+        train_X=train_X_cv,
+        test_X=test_X_cv,
+        train_Y=train_Y_cv,
+        test_Y=test_Y_cv,
+        train_Yvar=train_Yvar_cv,
+        test_Yvar=test_Yvar_cv,
+    )

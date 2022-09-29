@@ -3,6 +3,7 @@ from typing import Optional
 import networkx as nx
 import torch
 
+
 class Problem:
 
     def __init__(self,
@@ -30,13 +31,13 @@ class Problem:
 
     def __call__(self, X: torch.Tensor, noise: bool = False):
         batch = X.ndimension() > 1
-        tkwargs =  {"device": X.device, "dtype": X.dtype}
         X = X if batch else X.unsqueeze(0)
-        f = self.evaluate_true(X=X).to(**tkwargs)
+        f = self.evaluate_true(X=X).to(dtype=torch.float, device=X.device)
         if noise and self.noise_std is not None:
             f += self.noise_std * torch.randn_like(f)
         if self.negate:
             f = -f
         if self.log:
             f = torch.log(f)
+            # f = torch.log(f + 1e-4)
         return f if batch else f.squeeze(0)

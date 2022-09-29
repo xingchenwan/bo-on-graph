@@ -6,10 +6,14 @@ import random
 import numpy as np
 import os
 import matplotlib.pyplot as plt
+from gpytorch.constraints import Interval
+
 
 def eigendecompose_laplacian(
         context_graph: nx.Graph,
-        dtype: torch.dtype = torch.float
+        dtype: torch.dtype = torch.float,
+        normalized_laplacian: bool = True,
+        normalized_eigenvalues: bool = True,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Perform eigen-decomposition of ``context_graph``.
@@ -19,21 +23,28 @@ def eigendecompose_laplacian(
         real eigenvalues
     Returns a tuple of torch.Tensor of shape ``N`` -> eigenvalues and ``N x N`` eigenvectors
     """
-    L = nx.normalized_laplacian_matrix(context_graph).todense()
+    if normalized_laplacian:
+        L = nx.normalized_laplacian_matrix(context_graph).todense()
+        if normalized_eigenvalues:
+            # eigenvalues of normalized Laplacian are bounded by [0, 2].
+            # divide by 2 to ensure the eigenvalues are between [0, 1]
+            L /= 2.
+            # L /= 1.
+    else:
+        L = nx.laplacian_matrix(context_graph).todense()
     L = torch.from_numpy(L).to(dtype)
     eigenvals, eigenvecs = torch.linalg.eigh(L, )
-    # eigenvals = eigenvals.real
-    # eigenvecs = eigenvecs.real
-    # eigenvals = torch.diag(eigenvals)    # eigenvals[1] are the imaginary parts.
     return eigenvals, eigenvecs
 
 
 def fit_gpytorch_model(mll, model, train_x, train_y,
                        train_iters: int = 100,
                        lr: float = 0.1,
-                       print_interval: int = 10,):
+                       print_interval: int = -1,
+                       return_loss: bool = False):
     with gpytorch.settings.debug(False):
-        optimizer = torch.optim.Adam(model.parameters(), lr=lr)  # Includes GaussianLikelihood parameters
+        # Includes GaussianLikelihood parameters
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
         model.train()
         model.likelihood.train()
         for i in range(train_iters):
@@ -43,19 +54,28 @@ def fit_gpytorch_model(mll, model, train_x, train_y,
             output = model(train_x)
             # Calc loss and backprop gradients
             loss = -mll(output, train_y.squeeze(-1))
+            if loss.ndim > 0:
+                loss = loss.sum()
             loss.backward()
-            if (i + 1) % print_interval == 0:
+            if print_interval > 0 and (i + 1) % print_interval == 0:
                 print(f"Iter {i+1}/{train_iters}: "
                       f"Loss={loss.item()}. ")
-                      # f"Lengthscale={model.covar_module.base_kernel.lengthscale.detach().numpy()}. ")
             optimizer.step()
+
+            # lengthscale = model.covar_module.base_kernel.lengthscale
+            # lengthscale[..., :5] = 1.
+            # lengthscale[..., 1:] = 1e4  # or whatever value you care about
+            # model.covar_module.base_kernel.lengthscale = lengthscale
+    if return_loss:
+        return model, loss.item()
     return model
 
 
-def prune_baseline(X_train: torch.Tensor,
-                   Y_train: torch.Tensor,
-                   index_to_keep: torch.Tensor,
-                   ):
+def prune_baseline(
+    X_train: torch.Tensor,
+    Y_train: torch.Tensor,
+    index_to_keep: torch.Tensor,
+):
     """Remove the training point and targets outside the current context graph"""
 
     mask = ~(X_train.view(1, -1) != index_to_keep.view(-1, 1)).all(dim=0)
@@ -63,6 +83,58 @@ def prune_baseline(X_train: torch.Tensor,
     X_train = X_train[idx, ...]
     Y_train = Y_train[idx, ...]
     return X_train, Y_train
+
+
+def get_context_graph(
+        base_graph: nx.Graph,
+        centre_node_idx: int,
+        nnodes: Optional[int] = 100,
+        n_hop_max: Optional[int] = None,
+) -> nx.Graph:
+    """
+    Obtain the context graph.
+    Args:
+        base_graph: nx.Graph. a base networkx graph
+        centre_node_idx: int. The index of the node of `base_graph` that should be used
+            as the centre of the graph construction.
+        max_node: the maximum number of nodes of the context graph.
+        n_hop: int. The maximum hop distance. This can be overriden by `max_node` argument.
+    Returns:
+        context_graph: a nx.Graph that is a subgraph of `base_graph`.
+    """
+    n_hop_max = n_hop_max or float("inf")
+    if ((not nnodes) and (not n_hop_max)) or (nnodes >= len(base_graph)):
+        return base_graph.copy()
+    elif nnodes:
+        selected_nodes = set([centre_node_idx])
+        # start at the specified central node
+        nbrs = set([centre_node_idx])
+        current_rad = 0
+        while len(selected_nodes) < nnodes and current_rad < n_hop_max:
+            nbrs = set((nbr for n in nbrs for nbr in base_graph[n]))
+            # remove the nodes that are already selected
+            nbrs = nbrs - nbrs.intersection(selected_nodes)
+            if len(selected_nodes) + len(nbrs) < nnodes:
+                selected_nodes = selected_nodes.union(nbrs)
+                # selected_nodes += nbrs
+            else:
+                # subsample
+                nbrs_subsampled_idx = np.random.choice(
+                    len(nbrs), nnodes - len(selected_nodes), replace=False).tolist()
+                nbrs_subsampled = set([list(nbrs)[i]
+                                      for i in nbrs_subsampled_idx])
+                # selected_nodes += nbrs_subsampled
+                selected_nodes = selected_nodes.union(nbrs_subsampled)
+            # denote that we are now sampling `k+1`-hop neighbors
+            current_rad += 1
+        # get the induced subgraph of the set of nodes in selected_nodes
+        context_graph = base_graph.subgraph(list(selected_nodes)).copy()
+    elif n_hop_max:
+        context_graph = nx.ego_graph(
+            base_graph, centre_node_idx, radius=n_hop_max
+        )
+
+    return context_graph
 
 
 def filter_invalid(X: torch.Tensor, X_avoid: torch.Tensor):
@@ -79,26 +151,29 @@ def filter_invalid(X: torch.Tensor, X_avoid: torch.Tensor):
 
 def generate_neighbors(
         X: int,
-        context_graph:  nx.Graph,
+        context_graph: nx.Graph,
         X_avoid: torch.Tensor,
         stochastic: bool = False
 ):
-    neighbors = torch.tensor(list(nx.all_neighbors(context_graph, int(X)))).to(X_avoid.device)
-    valid_neighbors =  filter_invalid(neighbors, X_avoid)
+    neighbors = torch.tensor(list(nx.all_neighbors(
+        context_graph, int(X)))).to(X_avoid.device)
+    valid_neighbors = filter_invalid(neighbors, X_avoid)
     if stochastic and len(valid_neighbors):
         return random.choice(valid_neighbors).reshape(1, -1)
     return valid_neighbors
 
 # todo: local search for optim acq optimization is not thoroughly tested yet.
+
+
 def local_search(
         objective_f: Callable,
-        context_graph:  Union[nx.Graph, Tuple[torch.Tensor, torch.Tensor]],
+        context_graph: Union[nx.Graph, Tuple[torch.Tensor, torch.Tensor]],
         q: int,
         X_avoid: Optional[torch.Tensor] = None,
         stochastic: bool = False,
         num_restarts: int = 20,
         batch_initial_conditions: Optional[torch.Tensor] = None,
-        patience = 50,
+        patience=50,
         unique: bool = True,
         device: str = "cpu",
 ):
@@ -109,7 +184,7 @@ def local_search(
         base_X_pending = objective_f.X_pending if q > 1 else None
     base_X_avoid = X_avoid
     tkwargs = {"device": device, "dtype": torch.int}
-    dim = 1 # the input is in terms of the index of graph, so the dimensionality is always 1
+    dim = 1  # the input is in terms of the index of graph, so the dimensionality is always 1
     if isinstance(context_graph, nx.Graph):
         nnodes = len(context_graph.nodes)
     else:
@@ -137,14 +212,16 @@ def local_search(
                 if stochastic:
                     while patience and len(neighbors):
                         with torch.no_grad():
-                            acq_val_neighbors = objective_f(neighbors.unsqueeze(1))
+                            acq_val_neighbors = objective_f(
+                                neighbors.unsqueeze(1))
                             n_queries += 1
                             if acq_val_neighbors[0] <= curr_f:
                                 patience -= 1
                             else:
                                 curr_x, curr_f = neighbors, acq_val_neighbors[0]
                                 break
-                            neighbors = generate_neighbors(int(x), context_graph, X_avoid)
+                            neighbors = generate_neighbors(
+                                int(x), context_graph, X_avoid)
                 else:
                     with torch.no_grad():
                         acq_val_neighbors = objective_f(neighbors.unsqueeze(1))
@@ -152,7 +229,8 @@ def local_search(
                     if acq_val_neighbors.max() <= curr_f:
                         break   # local minimum reached
                     best_ind = acq_val_neighbors.argmax().item()
-                    curr_x, curr_f = neighbors[best_ind].unsqueeze(0), acq_val_neighbors[best_ind]
+                    curr_x, curr_f = neighbors[best_ind].unsqueeze(
+                        0), acq_val_neighbors[best_ind]
             best_xs[j, :], best_acqvals[j] = curr_x, curr_f
         # pick the best
         best_idx = best_acqvals.argmax()
@@ -181,40 +259,51 @@ def local_search(
         acq_value = objective_f(candidates)  # compute joint acquisition value
     return candidates, acq_value, n_queries
 
+
 class Plot_animation:
-    def __init__(self, graph, n, ground_truth, save_path = "") -> None:
+    def __init__(
+        self,
+        graph: nx.Graph,
+        objective_func: Callable,
+        save_path: str,
+    ) -> None:
         self.graph = graph
-        self.n = n
-        self.ground_truth = ground_truth
-        mapping = {}
-        for i in range(n):
-            for j in range(n):
-                mapping[i*n+j] = np.array([1 - i*2/n, -1 + j*2/n])
-        
-        self.pos = mapping
+        self.n = len(graph)
+        self.ground_truth = objective_func
+        # random_indices = np.random.choice(
+        #     n, min(n, n_samples), replace=False).tolist()
+        self.colors = [float(self.ground_truth(i)) for i in range(self.n)]
+        # self.colors = [float(self.ground_truth(i)) for i in range(n**2)]
 
-        self.colors=[float(self.ground_truth(i)) for i in range(n**2)]
-
-        self.save_path = os.path.join("./logs/plot/", save_path)
-        self.iteration = 0
+        self.save_path = save_path
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
 
     def add_candidate(self, candidates):
 
         for candidate in candidates:
             self.colors[int(candidate[0])] = -3
 
-    def make_plot(self):
+    def make_plot(self, n_iters: int):
 
-        cmap=plt.cm.Blues
+        cmap = plt.cm.Blues
         vmin = min(self.colors)
         vmax = max(self.colors)
-
-        nx.draw(self.graph, self.pos, node_color=self.colors, cmap=cmap, vmin=vmin, vmax=vmax)
-        sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin = vmin, vmax=vmax))
+        pos = nx.spring_layout(self.graph)
+        nx.draw(self.graph, pos, node_color=self.colors, node_size=50,
+                cmap=cmap, vmin=vmin, vmax=vmax)
+        sm = plt.cm.ScalarMappable(
+            cmap=cmap, norm=plt.Normalize(vmin=vmin, vmax=vmax))
         sm._A = []
-        #plt.colorbar(sm)
-        plt.savefig(os.path.join(self.save_path, f"{str(self.iteration).zfill(4)}.png"))
-        self.iteration += 1
+        # plt.colorbar(sm)
+        plt.savefig(os.path.join(self.save_path,
+                    f"{str(n_iters).zfill(4)}.png"))
 
     def make_animation(self):
         return 0
+
+
+class Round(Interval):
+
+    def __init__(self, lower) -> None:
+        super().__init__()

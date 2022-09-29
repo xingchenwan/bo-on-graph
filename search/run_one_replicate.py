@@ -1,14 +1,22 @@
+from email.mime import base
 from time import time
 
 import networkx as nx
 import torch
 from typing import Optional, Dict, Any
 import numpy as np
-from problems import get_synthetic_problem, all_synthetic_problem_labels
+from problems import get_synthetic_problem
 import random
 from search.models import initialize_model, get_acqf, optimize_acqf
 from search.utils import (
-    prune_baseline, generate_neighbors, filter_invalid, Plot_animation
+    prune_baseline,
+    generate_neighbors,
+    Plot_animation,
+    get_context_graph,
+)
+from search.trust_region import (
+    update_state,
+    restart,
 )
 import os
 
@@ -29,16 +37,61 @@ def run_one_replication(
         batch_size: int = 1,
         n_initial_points: Optional[int] = None,
         acqf_optimizer: str = "enumerate",
+        max_radius: int = 10,
+        context_graph_nnode_init: int = 100,
         acqf_kwargs: Optional[dict] = None,
         acqf_optim_kwargs: Optional[dict] = None,
         model_kwargs: Optional[Dict[str, Any]] = None,
+        trust_region_kwargs: Optional[Dict[str, Any]] = None,
+        problem_kwargs: Optional[Dict[str, Any]] = None,
         dtype: torch.dtype = torch.float,
         device: str = "cpu",
-        prune_points: bool = True,
         save_frequency: int = 1,
-        ego_radius: int = 2,
-        animation = False
+        animation: bool = False,
+        animation_interval: int = 20,
 ):
+    """
+    Run one replication of the a supported algorithm
+    Args:
+        label: str. Defines the method string.
+        seed: int. The random seed
+        problem_name: str. The string that identifies the problem we'd like to run on.
+        save_path: str. The saving directory of the experiment
+        iterations: int. The max number of iterations (in terms of number of batches) *beyond the  
+            initial random initializations*.
+        batch_size: int. batch size of the algorithm
+        n_initial_point: int. The number of configurations at initialization to be randomly 
+            initialized.
+        acq_optimizer: str (applicable for BO only). The type of acquisition optimizer. options:
+            "enumerate", "local_search".
+            Enumeration is currently highly recommended (local search is not tested).
+        max_radius: int (applicable for BO only). The maximum radius from the centre node, when
+            constructing the local context graph.
+        context_graph_nnode_init: int. The initial number of nodes of the context graph. When None,
+            the local context graph can be the entire graph.
+        acqf_kwargs: Any keyword arguments to be passed to the acquisition function constructor.
+        acqf_optim_kwargs: Any keyword arguments to be passed to the acqf optimizer.
+        model_kwargs: ... to be passed to the model constrcutor.
+        problem_kwargs: Any arguments to be passed to the base problem constructor. See
+            "./problems" to see the possible arguments for each problem.
+        trust_region_kwargs: keyword arguments to be passed to the trust region constructor.
+            will be ignored when the search method does not use trust regions.
+            Options:
+                n_nodes: the initial number of nodes in the context graph.
+                n_nodes_min: the min number of nodes in the context graph. When trust region size
+                    drops below this, a restart is triggered.
+                trust_region_multiplier: the factor to be multiplied (or divided) on the trust
+                    region size when we expand/shrink the trust region.
+                succ_tol: number of successive successes to expand the trust region
+                fail_tol: number of successive failures to shrink the trust region
+        dtype, device: defines the device and dtype.
+        save_frequency: the frequency to save intermediate results to disc
+        animation: whether to generate intermediate plots during optimzation
+        animation_interval: frequency of animation. Ignored when `animation` is False.
+    """
+    trust_region_kwargs = dict(trust_region_kwargs) or {}
+    problem_kwargs = dict(problem_kwargs) or {}
+
     torch.manual_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
@@ -52,27 +105,42 @@ def run_one_replication(
     acqf_kwargs = acqf_kwargs or {}
     model_kwargs = model_kwargs or {}
 
-    if problem_name in all_synthetic_problem_labels:
-        base_function = get_synthetic_problem(problem_name, seed=seed)
-    else:
-        raise NotImplementedError() # todo
+    base_function = get_synthetic_problem(
+        problem_name, seed=seed, problem_kwargs=problem_kwargs)
 
+    context_graph_nnode_init = min(context_graph_nnode_init, len(
+        base_function.context_graph)) \
+        if context_graph_nnode_init \
+        else len(base_function.context_graph)
     # Plot animation
     if animation:
-        plot_animation = Plot_animation(base_function.context_graph, 30, base_function.obj_func, save_path=label)
-    
+        plot_animation = Plot_animation(
+            base_function.context_graph,
+            base_function.obj_func,
+            save_path=os.path.join(save_path, "animations")
+        )
+
     # generate initial data
     n_initial_points = n_initial_points or 20
-    X = torch.randint(
-        0, base_function.problem_size, (n_initial_points, 1)
-    ).to(**tkwargs)
+    use_trust_region = "ego_network" in label
+    candidates, trust_region_state = restart(
+        base_graph=base_function.context_graph,
+        n_init=n_initial_points,
+        seed=seed,
+        batch_size=batch_size,
+        init_context_graph_size=context_graph_nnode_init,
+        use_trust_region=use_trust_region,
+        options=trust_region_kwargs,
+    )
+    n_restart = 0
+    X = candidates.reshape(-1, 1).to(**tkwargs)
     Y = base_function(X).to(**tkwargs)
     X_ = X.clone()
     Y_ = Y.clone()
 
     if animation:
-        plot_animation.add_candidate(X)    
-        plot_animation.make_plot()
+        plot_animation.add_candidate(X)
+        # plot_animation.make_plot(X.shape[0])
     is_moo = base_function.is_moo
     if is_moo:
         raise NotImplementedError()
@@ -92,9 +160,15 @@ def run_one_replication(
 
     # get the context graph
     if "ego_network" in label:
-        context_graph = nx.ego_graph(base_function.context_graph, best_loc.item(), radius=ego_radius)
-        if prune_points:
-            X_, Y_ = prune_baseline(X_, Y_, torch.tensor(list(context_graph.nodes),).to(X_))
+        # context_graph = nx.ego_graph(
+        #     base_function.context_graph, best_loc.item(), radius=ego_radius)
+        context_graph = get_context_graph(
+            base_function.context_graph,
+            best_loc.item(),
+            nnodes=context_graph_nnode_init,
+        )
+        X_, Y_ = prune_baseline(X_, Y_, torch.tensor(
+            list(context_graph.nodes),).to(X_))
         # index lookup:local index: global index
         inverse_map_dict = dict(zip(
             list(range(context_graph.number_of_nodes())),
@@ -103,22 +177,21 @@ def run_one_replication(
         # global index -> local index
         map_dict = {v: k for k, v in inverse_map_dict.items()}
         # functions to create the indices in terms of the global graph and the local graph
-        index_remapper = lambda x: torch.tensor([map_dict[int(i)] for i in x]).to(x).reshape(-1, x.shape[-1])
-        inverse_index_remapper = lambda x: torch.tensor([inverse_map_dict[int(i)] for i in x]).to(x).reshape(-1, x.shape[-1])
+
+        def index_remapper(x): return torch.tensor(
+            [map_dict[int(i)] for i in x]).to(x).reshape(-1, x.shape[-1])
+        def inverse_index_remapper(x): return torch.tensor(
+            [inverse_map_dict[int(i)] for i in x]).to(x).reshape(-1, x.shape[-1])
     else:
         context_graph = base_function.context_graph
         # no conversion required when we have a global model
-        index_remapper = lambda x: x
-        inverse_index_remapper = lambda x: x
+        def index_remapper(x): return x
+        def inverse_index_remapper(x): return x
 
     # when the context graph does not change from iter to iter, we do not have to recompute the
     #   eigenbasis of the resulting Laplacian
     cached_eigenbasis = None
     use_cached_eigenbasis = True
-
-    # methods for local search only
-    cached_neighbors = None
-    use_cached_neighbors = True
 
     for i in range(existing_iterations, iterations):
         print(
@@ -129,79 +202,116 @@ def run_one_replication(
         )
         if label == "random":
             candidates = torch.from_numpy(
-                np.random.RandomState(seed+i).choice(
+                np.random.RandomState(seed + i).choice(
                     base_function.problem_size,
                     size=batch_size
                 )
             ).reshape(-1, 1).to(**tkwargs)
         elif "local_search" in label:
-            if use_cached_neighbors and cached_neighbors is not None:
-                neighbors_of_best = filter_invalid(
-                    cached_neighbors,
-                    X_avoid=X)
-            else:
-                neighbors_of_best = generate_neighbors(
-                    best_loc,
-                    base_function.context_graph,
-                    X_avoid=X
-                )
+            neighbors_of_best = generate_neighbors(
+                best_loc,
+                base_function.context_graph,
+                X_avoid=X
+            )
             # when we cannot find a valid point for the local search, we have reached a local minimum.
             # randomly spawn a new starting point
             if not len(neighbors_of_best):
-                patience = 50
-                candidates = []
-                while patience > 0 and len(candidates) < batch_size:
-                    candidates = torch.from_numpy(np.random.RandomState(seed+patience).choice(
-                        base_function.problem_size, batch_size)).to(**tkwargs)
-                    candidates = filter_invalid(candidates, X)
-                    patience -= 1
-                if len(candidates) >= batch_size:
-                    candidates = candidates[:batch_size]
+                candidates = None
+                while candidates is None or candidates.shape[0] == 0:
+                    print(f"Restart triggered at iteration {len(X)}")
+                    n_restart += 1
+                    candidates, trust_region_state = restart(
+                        base_graph=base_function.context_graph,
+                        n_init=n_initial_points,
+                        seed=seed + n_restart,
+                        batch_size=batch_size,
+                        use_trust_region=False,
+                        X_avoid=X,
+                        options=trust_region_kwargs,
+                    )
+                    candidates = candidates.reshape(-1, 1).to(X)
+                    X_ = torch.zeros(0, X_.shape[1]).to(X_)
+                    Y_ = torch.zeros(0, 1).to(Y_)
             else:
-                candidate_idx = np.unique(np.random.RandomState(i+seed).choice(len(neighbors_of_best), batch_size, )).tolist()
+                candidate_idx = np.unique(np.random.RandomState(
+                    i + seed).choice(len(neighbors_of_best), batch_size, )).tolist()
                 candidates = neighbors_of_best[candidate_idx]
         else:
-            # create remappers to convert raw X into indices in terms of the new context graph
-            X_mapped = index_remapper(X_).to(**tkwargs)
-            model, mll, cached_eigenbasis = initialize_model(
-                train_X=X_mapped,
-                train_Y=Y_,
-                context_graph=context_graph,
-                fit_model=True,
-                cached_eigenbasis=cached_eigenbasis,
-                use_cached_eigenbasis=use_cached_eigenbasis,
-                **model_kwargs
-            )
-            if not is_moo:
-                acq_func = get_acqf(
-                    model,
-                    X_baseline=X_mapped,
-                    train_Y=Y_,
+            # when a restart is triggered
+            if use_trust_region and trust_region_state.restart_triggered:
+                print(f"Restart triggered at iteration {len(X)}")
+                n_restart += 1
+                candidates, trust_region_state = restart(
+                    base_graph=base_function.context_graph,
+                    n_init=n_initial_points,
+                    seed=seed + n_restart,
                     batch_size=batch_size,
-                    acq_type="ei",
-                    **acqf_kwargs
+                    use_trust_region=use_trust_region,
+                    init_context_graph_size=context_graph_nnode_init,
+                    X_avoid=X,
+                    options=trust_region_kwargs,
                 )
+                context_graph = None    # reset the context graph to be re-initialized later
+                candidates = candidates.reshape(-1, 1).to(X)
+                X_ = torch.zeros(0, X_.shape[1]).to(X_)
+                Y_ = torch.zeros(0, 1).to(Y_)
             else:
-                raise NotImplementedError() # todo: multiobjective problems
+                # create remappers to convert raw X into indices in terms of the new context graph
+                X_mapped = index_remapper(X_).to(**tkwargs)
+                model, mll, cached_eigenbasis = initialize_model(
+                    train_X=X_mapped,
+                    train_Y=Y_,
+                    context_graph=context_graph,
+                    fit_model=True,
+                    cached_eigenbasis=cached_eigenbasis,
+                    use_cached_eigenbasis=use_cached_eigenbasis,
+                    **model_kwargs
+                )
+                if not is_moo:
+                    acq_func = get_acqf(
+                        model,
+                        X_baseline=X_mapped,
+                        train_Y=Y_,
+                        batch_size=batch_size,
+                        acq_type="ei",
+                        **acqf_kwargs
+                    )
+                else:
+                    raise NotImplementedError()  # todo: multiobjective problems
 
-            # generate candidates by optimizing the acqf function
-            raw_candidates = optimize_acqf(
-                acq_func,
-                context_graph=context_graph,
-                method=acqf_optimizer,
-                batch_size=batch_size,
-                **acqf_optim_kwargs,
-            )
+                # generate candidates by optimizing the acqf function
+                raw_candidates = optimize_acqf(
+                    acq_func,
+                    context_graph=context_graph,
+                    method=acqf_optimizer,
+                    batch_size=batch_size,
+                    X_avoid=X_mapped,
+                    **acqf_optim_kwargs,
+                )
+                if raw_candidates is None:
+                    if use_trust_region:
+                        trust_region_state.restart_triggered = True
+                        continue
+                    else:
+                        break
 
-            # the candidates are in terms of the local graph -- map them back to the global graph
-            candidates = inverse_index_remapper(raw_candidates).to(X)
+                # the candidates are in terms of the local graph -- map them back to the global graph
+                candidates = inverse_index_remapper(
+                    raw_candidates).to(X).reshape(-1, 1)
 
-        if animation:
-            plot_animation.add_candidate(candidates)
-            plot_animation.make_plot()
+        if animation and animation_interval > 0 and (X.shape[0] + 1) % animation_interval == 0:
+            plot_animation.add_candidate(candidates, )
+            plot_animation.make_plot(n_iters=X.shape[0] + candidates.shape[0])
 
         # evaluate the problem
         new_y = base_function(candidates)
+
+        # update the trust region state, if applicable
+        if use_trust_region:
+            trust_region_state = update_state(
+                state=trust_region_state,
+                Y_next=candidates
+            )
 
         X = torch.cat([X, candidates], dim=0)
         Y = torch.cat([Y, new_y], dim=0)
@@ -211,29 +321,32 @@ def run_one_replication(
         wall_time[i] = time() - start_time
 
         if is_moo:
-            pass    # todo
+            raise NotImplemented()    # todo
         else:
             obj = Y_
             new_best_obj = obj.max().view(-1)[0].cpu()
             # when best point changes we need to recompute ego net
             if ("ego_network" in label or "local_search" in label) \
-                    and new_best_obj != best_obj:
-                best_loc = X[obj.argmax().cpu()]
-                context_graph = nx.ego_graph(base_function.context_graph, best_loc.item(), radius=ego_radius)
-                if prune_points:
+                    and (new_best_obj != best_obj or context_graph is None):
+                best_idx = obj.argmax().cpu()
+                best_loc = X_[best_idx]
+                if "ego_network" in label:
+                    context_graph = get_context_graph(
+                        base_function.context_graph,
+                        best_loc.item(),
+                        nnodes=context_graph_nnode_init,
+                    )
                     X_, Y_ = prune_baseline(X, Y, torch.tensor(
                         list(context_graph.nodes)).to(X))
-                # the context graph changed -- need to re-compute the eigenbasis for the next BO iteration.
-                inverse_map_dict = dict(zip(
-                    list(range(context_graph.number_of_nodes())),
-                    list(context_graph.nodes)
-                ))
-                map_dict = {v: k for k, v in inverse_map_dict.items()}
-                use_cached_eigenbasis = False
-                use_cached_neighbors = False
+                    # the context graph changed -- need to re-compute the eigenbasis for the next BO iteration.
+                    inverse_map_dict = dict(zip(
+                        list(range(context_graph.number_of_nodes())),
+                        list(context_graph.nodes)
+                    ))
+                    map_dict = {v: k for k, v in inverse_map_dict.items()}
+                    use_cached_eigenbasis = False
             else:
                 use_cached_eigenbasis = True
-                use_cached_neighbors = True
             best_obj = new_best_obj
 
             # Periodically save the output.
@@ -253,7 +366,7 @@ def run_one_replication(
                 with open(os.path.join(save_path, f"{str(seed).zfill(4)}_{label}.pt"), "wb") as fp:
                     torch.save(output_dict, fp)
         print(f"Current candidate {candidates}")
-    
+
     # Save the final output
     if hasattr(base_function, "ground_truth"):
         regret = base_function.ground_truth.cpu() - Y.cpu()
@@ -269,18 +382,3 @@ def run_one_replication(
     }
     with open(os.path.join(save_path, f"{str(seed).zfill(4)}_{label}.pt"), "wb") as fp:
         torch.save(output_dict, fp)
-
-
-if __name__ == "__main__":
-    import sys
-    sys.path.append('../')
-    save_dir = "./logs/synthetic/"
-    for i in range(20):
-        run_one_replication(
-            label="local_search",
-            seed=i,
-            problem_name="diffusion",
-            save_path=save_dir,
-            batch_size=1,
-            n_initial_points=10,
-        )

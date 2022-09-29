@@ -1,55 +1,84 @@
+from multiprocessing.sharedctypes import Value
+from random import random
 import networkx as nx
-from typing import Optional, Any, Union, Tuple, Callable
+from typing import Optional, Any, Union, Tuple, Callable, Dict
 
 import numpy as np
 import torch
 from problems.base_problem import Problem
 import ndlib.models.epidemics as ep
 import ndlib.models.ModelConfig as mc
-import random
+from math import sqrt
 
-all_synthetic_problem_labels = [
-    "small_ba_betweenness", "diffusion", "test_function",
-]
 
 def get_synthetic_problem(
-        label="small_ba_betweenness",
+        label: str,
         seed: int = 0,
-        n = 30
+        n: int = 5000,
+        problem_kwargs: Optional[Dict[str, Any]] = None,
 ) -> "SyntheticProblem":
-    if label == "small_ba_betweenness":
-        g = generate_random_graph("ba", seed=seed, return_adj_matrix=False, n=1000, m=3)
-        ground_truth = compute_synthetic_node_features(g, feature_name="betweenness",)
-        obj_func = lambda idx: ground_truth[idx]
-        return SyntheticProblem(g, obj_func, problem_size=len(g.nodes))
-    elif label == "diffusion":
-        g = generate_random_graph("ba", seed=seed, return_adj_matrix=False, n=1000, m=3)
-
-        model = ep.SIRModel(g, seed=seed)
-        config = mc.Configuration()
-        config.add_model_parameter('beta', 0.05)
-        config.add_model_parameter('gamma', 0.01)
-
-        config.add_model_parameter("fraction_infected", 0.05)
-        model.set_initial_status(config)
-
-        ground_truth = compute_synthetic_node_features(g, feature_name="diffusion", model = model)
-        obj_func = lambda idx: ground_truth[idx]
-        return SyntheticProblem(g, obj_func, problem_size=len(g.nodes))
-    
-    elif label == "test_function":
-        #todo
-        n, m = n, n
-        g = nx.generators.grid_2d_graph(n,m)
+    problem_kwargs = problem_kwargs or {}
+    random_graph_type = problem_kwargs.get("random_graph_type", "ba")
+    assert random_graph_type in ["ba", "ws", "grid", "seed", "sbm"]
+    if random_graph_type == "ba":
+        m = problem_kwargs.get("m", 1)
+        g = nx.generators.random_graphs.barabasi_albert_graph(
+            seed=seed, n=n, m=m)
+    elif random_graph_type == "ws":
+        k = problem_kwargs.get("k", 3)
+        p = problem_kwargs.get("p", 0.2)
+        g = nx.generators.random_graphs.watts_strogatz_graph(
+            n=n, k=k, p=p, seed=seed
+        )
+    elif random_graph_type == "grid":
+        n, m = int(sqrt(n)), int(sqrt(n))
+        g = nx.generators.grid_2d_graph(n, m)
         mapping = {}
         for i in range(n):
             for j in range(m):
-                mapping[(i,j)] = i*m + j
-
+                mapping[(i, j)] = i * m + j
         g = nx.relabel_nodes(g, mapping)
-        ground_truth = compute_synthetic_node_features(g, feature_name="test_function", n=n, m=m)
-        obj_func = lambda idx: ground_truth[idx]
-        return SyntheticProblem(g, obj_func, problem_size=len(g.nodes))
+    elif random_graph_type == "sbm":
+        sizes = problem_kwargs.get("sizes")
+        p = problem_kwargs.get("p")
+        g = nx.generators.stochastic_block_model(sizes, p)
+    else:
+        raise ValueError(
+            f"Unknown random_graph_type = {random_graph_type}")
+
+    if label in ["centrality", "small_ba_betweenness"]:  # alias for backward compatibilitys
+        feature_name = problem_kwargs.get(
+            "feature_name", "eigenvector_centrality")
+        ground_truth = compute_synthetic_node_features(
+            g, feature_name=feature_name,)
+
+        def obj_func(idx): return ground_truth[idx]
+        return SyntheticProblem(g, obj_func, problem_size=len(g.nodes), **problem_kwargs)
+    elif label == "diffusion":
+
+        model = ep.SIRModel(g, seed=seed)
+        config = mc.Configuration()
+        beta = problem_kwargs.get("beta", 1.)
+        gamma = problem_kwargs.get("gamma", 0.2)
+        fraction_infected = problem_kwargs.get("fraction_infected", 0.0003)
+        config.add_model_parameter('beta', beta)
+        config.add_model_parameter('gamma', gamma)
+
+        config.add_model_parameter("fraction_infected", fraction_infected)
+        model.set_initial_status(config)
+
+        ground_truth = compute_synthetic_node_features(
+            g, feature_name="diffusion", model=model, )
+
+        def obj_func(idx): return ground_truth[idx]
+        return SyntheticProblem(g, obj_func, problem_size=len(g.nodes), **problem_kwargs)
+
+    elif label == "test_function":
+        ground_truth = compute_synthetic_node_features(
+            g, feature_name="test_function", n=n, m=m, )
+
+        def obj_func(idx): return ground_truth[idx]
+        return SyntheticProblem(g, obj_func, problem_size=len(g.nodes), **problem_kwargs)
 
     else:
         # todo
@@ -66,7 +95,9 @@ class SyntheticProblem(Problem):
                  problem_size: Optional[int] = None,
                  noise_std: Optional[float] = None,
                  negate: bool = False,
-                 log: bool = False):
+                 log: bool = False,
+                 **kwargs,
+                 ):
         super().__init__(context_graph, noise_std=noise_std, negate=negate, log=log)
         self.obj_func = obj_func
         self.problem_size = problem_size or len(context_graph)
@@ -83,46 +114,26 @@ class SyntheticProblem(Problem):
         best = self(all_possible_vals).max()
         return best
 
-def generate_random_graph(
-        graph_type: str = "ba",
-        seed: Optional[int] = None,
-        return_adj_matrix: bool = False,
-        **generator_kwargs,
-) -> Union[nx.Graph, Tuple[nx.Graph, np.ndarray]]:
-    assert graph_type in ["ba", "ws", "sbm"]
-    if graph_type == "ba":
-        assert "n" in generator_kwargs.keys()
-        assert "m" in generator_kwargs.keys()
-        g = nx.generators.random_graphs.barabasi_albert_graph(seed=seed, **generator_kwargs)
-    elif graph_type == "sbm":
-        assert "sizes" in generator_kwargs.keys()
-        assert "p" in generator_kwargs.keys()
-        g = nx.stochastic_block_model(seed=seed, **generator_kwargs)
-    else:
-        raise ValueError(f"Unknown graph_type {graph_type}")
-    if not return_adj_matrix:
-        return g
-    A = nx.adjacency_matrix(g).todense()
-    return g, A
-
 
 def compute_synthetic_node_features(
         input_graph: nx.Graph,
         feature_name: str = "betweenness",
-        log: bool = False,
         model: ep.SIRModel = None,
-        n = None,
-        m = None,
+        n=None,
+        m=None,
         **kwargs
 ):
     nnodes = len(input_graph)
     if feature_name == "betweenness":
         feature = nx.betweenness_centrality(input_graph, **kwargs)
     elif feature_name == "eigenvector_centrality":
-        feature = nx.eigenvector_centrality(input_graph, **kwargs)
+        feature = nx.eigenvector_centrality(
+            input_graph, max_iter=1000, **kwargs)
+    elif feature_name == "closeness":
+        feature = nx.closeness_centrality(input_graph)
     elif feature_name == "diffusion":
-        #initial status
-        feature = dict.fromkeys(range(nnodes),0)
+        # initial status
+        feature = dict.fromkeys(range(nnodes), 0)
         iteration = model.iteration()
         feature = iteration['status']
         while (iteration['node_count'][1] != 0) and (iteration['iteration'] < 50):
@@ -130,17 +141,19 @@ def compute_synthetic_node_features(
             for key, value in iteration['status'].items():
                 if value == 1:
                     feature[key] = iteration['iteration'] + 1
-        
+
         for key, value in feature.items():
             if value != 0:
-                feature[key] = (1 - (feature[key] - 1)/(iteration['iteration'] + 1))**2
+                feature[key] = (1 - (feature[key] - 1) /
+                                (iteration['iteration'] + 1))**2
     elif feature_name == "test_function":
-        feature = dict.fromkeys(range(nnodes),0)
-        #rosembrock = lambda x, y: -100*(y - x**2)**2 - (1 - x)**2
-        rosembrock = lambda x, y: -y**2 - x**2 + 10
+        feature = dict.fromkeys(range(nnodes), 0)
+        def rosembrock(x, y): return -100 * (y - x**2)**2 - (1 - x)**2
+        # def rosembrock(x, y): return -y**2 - x**2 + 10
         for i in range(n):
             for j in range(m):
-                feature[i*m + j] = rosembrock(2 - (4/n)*i, -2 + (4/m)*j)
+                feature[i * m +
+                        j] = rosembrock(2 - (4 / n) * i, -2 + (4 / m) * j)
 
     else:
         f = getattr(nx, feature_name, None)
@@ -153,22 +166,4 @@ def compute_synthetic_node_features(
     for node, val in feature.items():
         ret[node] = val
     ret = torch.from_numpy(ret).float()
-    if log:
-        return torch.log(
-            torch.max(ret, torch.tensor(1e-5).to(ret))
-        )
     return ret
-
-
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-
-    test_graph = generate_random_graph("ba", seed=0, n=100, m=2)
-    features = compute_synthetic_node_features(
-        test_graph,
-        "small_ba_betweenness",
-        log=True
-    )
-    dcent_color = [features[i] for i in range(len(features))]
-    nx.draw(test_graph, node_color=dcent_color,)
-    plt.show()

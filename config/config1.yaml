@@ -1,6 +1,0 @@
-label: ["ei_ego_network_1", "random", "local_search"]
-save_dir: ./logs/synthetic/
-problem_name: diffusion
-n_exp: 10
-plot:
-  n_stop: 100
