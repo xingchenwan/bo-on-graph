@@ -19,7 +19,7 @@ from botorch.acquisition import (ExpectedImprovement,
                                  qNoisyExpectedImprovement,
                                  UpperConfidenceBound,
                                  qUpperConfidenceBound)
-from botorch.sampling.samplers import SobolQMCNormalSampler
+from botorch.sampling.normal import SobolQMCNormalSampler
 from math import log
 import botorch
 from botorch.utils.transforms import standardize

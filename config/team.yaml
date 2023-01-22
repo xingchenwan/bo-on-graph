@@ -1,6 +1,6 @@
 label:  ["ei_ego_network_1", "random", "local_search"]
-save_dir: ./logs/rosenbrock/grid/
-problem_name: rosenbrock 
+save_dir: ./logs/team/
+problem_name: team_opt 
 n_exp: 10
 plot:
   n_stop: 100
@@ -20,20 +20,16 @@ bo_settings:
     fail_tol: 30      # fail tolerance
   
 problem_settings:
-  n: 100
-  random_graph_type: "grid" # sbm, ba, ws
-  # feature_name: "eigenvector_centrality"
+  random_graph_type: "set" # sbm, ba, ws
+  # SIR model settings
+  p: 0.2
+  k: 4
+  beta: 1.
+  gamma: 0.0
+  m: 2
+  fraction_infected: 3e-4
+  n_individuals: 10
   
-  # m: 3
-  # p: 0.2
-  # k: 4
-  # log: True
-  # p: 0.4
-  # p: [[0.25, 0.02, 0.01], [0.02, 0.35, 0.07], [0.01, 0.07, 0.40]]
-  # sizes: [75, 75, 300]
-  # k: 4
-  # log: True
-  # p: 0.4
-  # k: 3
+
 
     

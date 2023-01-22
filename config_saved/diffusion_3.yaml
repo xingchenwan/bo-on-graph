@@ -1,6 +1,6 @@
 label: ["ei_ego_network_1", "local_search", "random"]
-save_dir: ./logs/synthetic/
-problem_name: diffusion 
+save_dir: ./logs/diffusion_0.8_0.2_ba/
+problem_name: diffusion
 n_exp: 10
 plot:
   n_stop: 100
@@ -20,10 +20,10 @@ bo_settings:
     fail_tol: 30      # fail tolerance
   
 problem_settings:
-  n: 5000
-  random_graph_type: ba
+  n: 10000
+  random_graph_type: "ba"
   # SIR model settings
-  beta: 1.
-  gamma: 0.0
+  beta: 0.8
+  gamma: 0.2
   m: 2
   fraction_infected: 3e-4

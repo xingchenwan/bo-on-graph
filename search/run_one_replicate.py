@@ -197,12 +197,13 @@ def run_one_replication(
     for i in range(existing_iterations, iterations):
         if len(X) > iterations * batch_size:
             break
-        print(
-            f"Starting label {label}, seed {seed}, iteration {i}, "
-            f"time: {time() - start_time}, "
-            f"Last obj: {obj[-batch_size:]}"
-            f"current best obj: {best_obj}."
-        )
+        if (i+1) % 2 == 0: 
+            print(
+                f"Starting label {label}, seed {seed}, iteration {i+1}, "
+                f"time: {time() - start_time}, "
+                f"Last obj: {obj[-batch_size:]}"
+                f"current best obj: {best_obj}."
+            )
         if label == "random":
             candidates = torch.from_numpy(
                 np.random.RandomState(seed + i).choice(
@@ -372,7 +373,7 @@ def run_one_replication(
                 }
                 with open(os.path.join(save_path, f"{str(seed).zfill(4)}_{label}.pt"), "wb") as fp:
                     torch.save(output_dict, fp)
-        print(f"Current candidate {candidates}")
+        #print(f"Current candidate {candidates}")
 
     # Save the final output
     if hasattr(base_function, "ground_truth"):

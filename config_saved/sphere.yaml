@@ -1,6 +1,6 @@
 label:  ["ei_ego_network_1", "random", "local_search"]
-save_dir: ./logs/rosenbrock/grid/
-problem_name: rosenbrock 
+save_dir: ./logs/sphere/grid/
+problem_name: sphere 
 n_exp: 10
 plot:
   n_stop: 100
@@ -20,7 +20,7 @@ bo_settings:
     fail_tol: 30      # fail tolerance
   
 problem_settings:
-  n: 100
+  n: 10000
   random_graph_type: "grid" # sbm, ba, ws
   # feature_name: "eigenvector_centrality"
   

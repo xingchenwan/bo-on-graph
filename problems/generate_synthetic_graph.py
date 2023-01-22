@@ -9,7 +9,8 @@ from problems.base_problem import Problem
 import ndlib.models.epidemics as ep
 import ndlib.models.ModelConfig as mc
 from math import sqrt
-
+from problems.hasse import generate_hasse
+from tqdm import tqdm
 
 def get_synthetic_problem(
         label: str,
@@ -18,8 +19,9 @@ def get_synthetic_problem(
         problem_kwargs: Optional[Dict[str, Any]] = None,
 ) -> "SyntheticProblem":
     problem_kwargs = problem_kwargs or {}
+    n = problem_kwargs.get("n", 5000)
     random_graph_type = problem_kwargs.get("random_graph_type", "ba")
-    assert random_graph_type in ["ba", "ws", "grid", "seed", "sbm"]
+    assert random_graph_type in ["ba", "ws", "grid", "seed", "sbm", "set"]
     if random_graph_type == "ba":
         m = problem_kwargs.get("m", 1)
         g = nx.generators.random_graphs.barabasi_albert_graph(
@@ -42,6 +44,9 @@ def get_synthetic_problem(
         sizes = problem_kwargs.get("sizes")
         p = problem_kwargs.get("p")
         g = nx.generators.stochastic_block_model(sizes, p)
+    elif random_graph_type == "set":
+        n_individuals = problem_kwargs.get("n_individuals")
+        g, forward_dict, backward_dict = generate_hasse(range(n_individuals))
     else:
         raise ValueError(
             f"Unknown random_graph_type = {random_graph_type}")
@@ -72,10 +77,50 @@ def get_synthetic_problem(
 
         def obj_func(idx): return ground_truth[idx]
         return SyntheticProblem(g, obj_func, problem_size=len(g.nodes), **problem_kwargs)
+    
+    elif label == "diffusion_real":
 
-    elif label == "test_function":
+        g = nx.from_edgelist(np.load("./com_edge_list.npy"))
+
+        dict_relabel = {}
+        for index, node in enumerate(sorted(list(g.nodes))):
+            dict_relabel[node] = index
+        g = nx.relabel_nodes(g, dict_relabel)
+
+        model = ep.SIRModel(g, seed=seed)
+        config = mc.Configuration()
+        beta = problem_kwargs.get("beta", 1.)
+        gamma = problem_kwargs.get("gamma", 0.2)
+        fraction_infected = problem_kwargs.get("fraction_infected", 0.0003)
+        config.add_model_parameter('beta', beta)
+        config.add_model_parameter('gamma', gamma)
+
+        config.add_model_parameter("fraction_infected", fraction_infected)
+        model.set_initial_status(config)
+
+        ground_truth = compute_synthetic_node_features(
+            g, feature_name="diffusion", model=model, )
+
+        def obj_func(idx): return ground_truth[idx]
+        return SyntheticProblem(g, obj_func, problem_size=len(g.nodes), **problem_kwargs)
+
+    elif label == "rosenbrock":
         ground_truth = compute_synthetic_node_features(
             g, feature_name="test_function", n=n, m=m, )
+
+        def obj_func(idx): return ground_truth[idx]
+        return SyntheticProblem(g, obj_func, problem_size=len(g.nodes), **problem_kwargs)
+    
+    elif label == "sphere":
+        ground_truth = compute_synthetic_node_features(
+            g, feature_name="sphere", n=n, m=m, )
+
+        def obj_func(idx): return ground_truth[idx]
+        return SyntheticProblem(g, obj_func, problem_size=len(g.nodes), **problem_kwargs)
+    
+    elif label == "team_opt":
+        ground_truth = compute_synthetic_node_features(
+            g, feature_name="team_opt", forward_dict=forward_dict, backward_dict=backward_dict)
 
         def obj_func(idx): return ground_truth[idx]
         return SyntheticProblem(g, obj_func, problem_size=len(g.nodes), **problem_kwargs)
@@ -121,6 +166,8 @@ def compute_synthetic_node_features(
         model: ep.SIRModel = None,
         n=None,
         m=None,
+        forward_dict: dict = None,
+        backward_dict: dict = None,
         **kwargs
 ):
     nnodes = len(input_graph)
@@ -146,7 +193,7 @@ def compute_synthetic_node_features(
             if value != 0:
                 feature[key] = (1 - (feature[key] - 1) /
                                 (iteration['iteration'] + 1))**2
-    elif feature_name == "test_function":
+    elif feature_name == "rosenbrock":
         feature = dict.fromkeys(range(nnodes), 0)
         def rosembrock(x, y): return -100 * (y - x**2)**2 - (1 - x)**2
         # def rosembrock(x, y): return -y**2 - x**2 + 10
@@ -154,7 +201,29 @@ def compute_synthetic_node_features(
             for j in range(m):
                 feature[i * m +
                         j] = rosembrock(2 - (4 / n) * i, -2 + (4 / m) * j)
-
+    elif feature_name == "sphere":
+        feature = dict.fromkeys(range(nnodes), 0)
+        def sphere(x, y): return -x**2 - y**2
+        # def rosembrock(x, y): return -y**2 - x**2 + 10
+        for i in range(n):
+            for j in range(m):
+                feature[i * m +
+                        j] = sphere(2 - (4 / n) * i, -2 + (4 / m) * j)
+    elif feature_name == "team_opt":
+        
+        ## Compute netropy defined before
+        n_individuals = kwargs.get("n_individuals", 10)
+        n_skills = kwargs.get("n_skills", 3)
+        alpha = kwargs.get("alpha", 1)
+        skills = np.random.dirichlet([alpha for _ in range(n_skills)], n_individuals)
+        feature = dict.fromkeys(range(nnodes), 0)
+        feature[0] = -1
+        for i in range(1, nnodes):
+            subset_skills = skills[np.array(forward_dict[i])]
+            subset_skills_avg = subset_skills.mean(axis = 0)
+            entropy_skills = -subset_skills * np.log(subset_skills)
+            obj_value = np.sum(-subset_skills_avg*np.log(subset_skills_avg)) - np.mean(np.sum(entropy_skills, axis = 1))
+            feature[i] = obj_value
     else:
         f = getattr(nx, feature_name, None)
         if f:

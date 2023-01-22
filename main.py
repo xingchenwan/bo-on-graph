@@ -18,7 +18,7 @@ def main(config):
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     n_exp = getattr(config, "n_exp", 10)
-    plot_result = getattr(config, "plot_result", False)
+    plot_result = getattr(config, "plot_result", True)
     animate = getattr(config, "animate", False)
     all_data_over_labels = {l: [] for l in labels}
 
@@ -67,7 +67,8 @@ def main(config):
             plt.fill_between(x, mean - std, mean + std,
                              color=f'C{label_idx}', alpha=0.2)
             plt.legend()
-            plt.savefig(os.path.join(save_dir, "plot_result.png",),)
+            plt.savefig(os.path.join(save_dir, "plot_result.pdf"))
+            plt.savefig(os.path.join(save_dir, "plot_result_png.png"))
 
 
 if __name__ == '__main__':

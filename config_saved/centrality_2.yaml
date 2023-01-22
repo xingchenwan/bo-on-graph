@@ -1,5 +1,5 @@
-label:  ["ei_ego_network_1",]
-save_dir: ./logs/eigen_centrality/ws_4_0.2/
+label:  [ "ei_ego_network_1", "random", "local_search"]
+save_dir: ./logs/eigen_centrality/ws_betweeness/
 problem_name: centrality 
 n_exp: 10
 plot:
@@ -22,7 +22,7 @@ bo_settings:
 problem_settings:
   n: 10000
   random_graph_type: "ws" # sbm, ba, ws
-  feature_name: "eigenvector_centrality"
+  feature_name: "betweeness" #"eigenvector_centrality"
   
   # m: 3
   p: 0.2
