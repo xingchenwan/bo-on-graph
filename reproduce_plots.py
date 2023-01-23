@@ -57,7 +57,7 @@ def plot_result(path: str, label: str, plot_kwargs: dict = None, median=False, c
     return y
 
 if __name__ == "__main__":
-    d_label = {"ei_ego_network_1":"bo", "random":"random", "local_search":"local_search"}
+    d_label = {"ei_ego_network_1":"bo", "random":"random", "local_search":"local_search", "dfs": "dfs", "bfs": "bfs"}
     logs_dir = './logs'
     task_list = [name for name in os.listdir(logs_dir) if os.path.isdir(os.path.join(logs_dir, name))]
     for task in task_list:

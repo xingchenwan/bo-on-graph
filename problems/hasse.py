@@ -1,6 +1,12 @@
 import networkx as nx
 from itertools import chain, combinations
 
+def jaccard_set(set1, set2):
+    """Define Jaccard Similarity function for two sets"""
+    intersection = len(set1.intersection(set2))
+    union = (len(set1) + len(set2)) - intersection
+    return float(intersection) / union
+
 # chain and combinations is from itertools
 def generate_hasse(L):
     """Generate Hasse diagram"""
@@ -23,3 +29,30 @@ def generate_hasse(L):
 
     graph = nx.relabel_nodes(graph, backward_dict)
     return graph, forward_dict, backward_dict
+
+
+def generate_jaccard(L):
+    #wegihted graph with intersection over union as weight
+    """Generate weighted diagram"""
+
+    def powerset(iterable):
+        s = list(iterable)
+        return chain.from_iterable(combinations(s, r) for r in range(len(s)+1))
+
+    u = list(powerset(L))
+    n = len(u)
+    forward_dict = dict(zip(range(n), u))
+    backward_dict = dict(zip(u, range(n)))
+    graph = nx.Graph()
+    graph.add_nodes_from(u)
+    for i in range(n):
+        for j in range(i+1, n):
+            w = jaccard_set(set(u[i]), set(u[j]))
+            if w > 0:
+                graph.add_edge(u[i], u[j], weight=w)
+    graph = nx.relabel_nodes(graph, backward_dict)
+    return graph, forward_dict, backward_dict
+
+if __name__ == "__main__":
+    L = range(4)
+    generate_jachard(L)

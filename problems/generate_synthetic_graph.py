@@ -9,7 +9,7 @@ from problems.base_problem import Problem
 import ndlib.models.epidemics as ep
 import ndlib.models.ModelConfig as mc
 from math import sqrt
-from problems.hasse import generate_hasse
+from problems.hasse import generate_hasse, generate_jaccard
 from tqdm import tqdm
 
 def get_synthetic_problem(
@@ -21,7 +21,7 @@ def get_synthetic_problem(
     problem_kwargs = problem_kwargs or {}
     n = problem_kwargs.get("n", 5000)
     random_graph_type = problem_kwargs.get("random_graph_type", "ba")
-    assert random_graph_type in ["ba", "ws", "grid", "seed", "sbm", "set"]
+    assert random_graph_type in ["ba", "ws", "grid", "seed", "sbm", "set", "jaccard", "real"]
     if random_graph_type == "ba":
         m = problem_kwargs.get("m", 1)
         g = nx.generators.random_graphs.barabasi_albert_graph(
@@ -47,6 +47,15 @@ def get_synthetic_problem(
     elif random_graph_type == "set":
         n_individuals = problem_kwargs.get("n_individuals")
         g, forward_dict, backward_dict = generate_hasse(range(n_individuals))
+    elif random_graph_type == "jaccard":
+        n_individuals = problem_kwargs.get("n_individuals")
+        g, forward_dict, backward_dict = generate_jaccard(range(n_individuals))
+    elif random_graph_type == "real":
+        g = nx.from_edgelist(np.load("./com_edge_list.npy"))
+        dict_relabel = {}
+        for index, node in enumerate(sorted(list(g.nodes))):
+            dict_relabel[node] = index
+        g = nx.relabel_nodes(g, dict_relabel)
     else:
         raise ValueError(
             f"Unknown random_graph_type = {random_graph_type}")
@@ -79,14 +88,6 @@ def get_synthetic_problem(
         return SyntheticProblem(g, obj_func, problem_size=len(g.nodes), **problem_kwargs)
     
     elif label == "diffusion_real":
-
-        g = nx.from_edgelist(np.load("./com_edge_list.npy"))
-
-        dict_relabel = {}
-        for index, node in enumerate(sorted(list(g.nodes))):
-            dict_relabel[node] = index
-        g = nx.relabel_nodes(g, dict_relabel)
-
         model = ep.SIRModel(g, seed=seed)
         config = mc.Configuration()
         beta = problem_kwargs.get("beta", 1.)

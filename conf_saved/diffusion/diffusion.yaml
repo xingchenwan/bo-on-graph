@@ -1,0 +1,29 @@
+label:  [ "dfs", "bfs"]
+save_dir: ./logs/diffusion/ba_m-2_beta-0.01_gamma-0.005_n-5000/
+problem_name: diffusion
+n_exp: 10
+plot:
+  n_stop: 100
+bo_settings:
+  batch_size: 1
+  max_iters: 50
+  # the maximum hop distance to the centre node when constructing the local context graph
+  max_radius: 10     
+
+  # the init size of the local context graph. If None, it can be as big as the entire graph.
+  context_graph_nnode_init: 100
+  
+  tr_settings:    # settings related to the trust region on the graph search space
+    n_nodes_min: 10         # the min number of nodes in the trust region
+    trust_region_multiplier: 1.5 
+    succ_tol: 10       # success tolerance
+    fail_tol: 30      # fail tolerance
+  
+problem_settings:
+  n: 5000
+  random_graph_type: "ba"
+  # SIR model settings
+  beta: 0.01
+  gamma: 0.005
+  m: 2
+  fraction_infected: 3e-4
