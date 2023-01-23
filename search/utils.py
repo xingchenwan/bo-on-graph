@@ -165,7 +165,6 @@ def generate_neighbors(
 
 # todo: local search for optim acq optimization is not thoroughly tested yet.
 
-
 def local_search(
         objective_f: Callable,
         context_graph: Union[nx.Graph, Tuple[torch.Tensor, torch.Tensor]],

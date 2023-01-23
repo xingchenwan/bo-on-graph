@@ -1,5 +1,5 @@
 label: [ "ei_ego_network_1", "random", "local_search"]
-save_dir: ./logs/diffusion/ba_m-2_beta-0.5_gamma-0.2_n-1000/
+save_dir: ./logs/diffusion/ba_m-2_beta-0.5_gamma-0.2_n-5000/
 problem_name: diffusion
 n_exp: 10
 plot:
@@ -20,7 +20,7 @@ bo_settings:
     fail_tol: 30      # fail tolerance
   
 problem_settings:
-  n: 1000
+  n: 5000
   random_graph_type: "ba"
   # SIR model settings
   beta: 0.5

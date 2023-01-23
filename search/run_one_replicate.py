@@ -28,6 +28,8 @@ supported_labels = [
     "local_search",
     "ei",
     "ei_ego_network_1",
+    "dfs",
+    "bfs",
 ]
 
 
@@ -197,6 +199,16 @@ def run_one_replication(
             [map_dict[int(i)] for i in x]).to(x).reshape(-1, x.shape[-1])
         def inverse_index_remapper(x): return torch.tensor(
             [inverse_map_dict[int(i)] for i in x]).to(x).reshape(-1, x.shape[-1])
+    elif label == "dfs" or label == "bfs":
+        visited = set(list(X_.numpy().flatten()))
+        list_stacks = []
+        for i in range(batch_size):
+            neighbors_current = generate_neighbors(
+                    int(X_[-i]),
+                    base_function.context_graph,
+                    X_avoid=X
+                )
+            list_stacks.append(list(neighbors_current.numpy().flatten()))
     else:
         context_graph = base_function.context_graph
         # no conversion required when we have a global model
@@ -254,6 +266,51 @@ def run_one_replication(
                 candidate_idx = np.unique(np.random.RandomState(
                     i + seed).choice(len(neighbors_of_best), batch_size, )).tolist()
                 candidates = neighbors_of_best[candidate_idx]
+        elif label == "dfs" or label == "bfs":
+            flag = 1
+            for stack in list_stacks:
+                flag *= len(stack)
+            if flag:
+                candidates = []
+                for i, stack in enumerate(list_stacks):
+                    element = stack.pop()
+                    if element not in visited:
+                        neighbors_element = generate_neighbors(
+                                                                element,
+                                                                base_function.context_graph,
+                                                                X_avoid=X
+                                                            )
+                        if label == "dfs":
+                            stack = stack + list(neighbors_element.numpy().flatten())
+                        elif label == "dfs":
+                            stack = list(neighbors_element.numpy().flatten()) + stack
+                        list_stacks[i] = stack
+                    candidates.append(element)
+                candidates = torch.tensor(candidates).reshape(-1,1)
+            else: #Restard if stuck
+                candidates = None
+                while candidates is None or candidates.shape[0] == 0:
+                    print(f"Restart triggered at iteration {len(X)}")
+                    n_restart += 1
+                    candidates, trust_region_state = restart(
+                        base_graph=base_function.context_graph,
+                        n_init=n_initial_points,
+                        seed=seed + n_restart,
+                        batch_size=batch_size,
+                        use_trust_region=False,
+                        X_avoid=X,
+                        options=trust_region_kwargs,
+                    )
+                    candidates = candidates.reshape(-1, 1).to(X)
+                    X_ = torch.zeros(0, X_.shape[1]).to(X_)
+                    Y_ = torch.zeros(0, 1).to(Y_)
+
+            new_y = base_function(candidates)
+            X = torch.cat([X, candidates], dim=0)
+            Y = torch.cat([Y, new_y], dim=0)
+            X_ = torch.cat([X_, candidates], dim=0)
+            Y_ = torch.cat([Y_, new_y], dim=0)
+            
         else:
             # when a restart is triggered
             if use_trust_region and trust_region_state.restart_triggered:
