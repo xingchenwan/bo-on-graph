@@ -7,6 +7,7 @@ import os
 import numpy as np
 import utils.config_utils as config_utils
 
+d_label = {"ei_ego_network_1":"bo", "random":"random", "local_search":"local_search"}
 
 def main(config):
 
@@ -44,6 +45,9 @@ def main(config):
                 problem_kwargs=getattr(config, "problem_settings", None),
             )
 
+    for label_idx, label in enumerate(labels):
+        all_data = all_data_over_labels[label]
+        for i in range(n_exp):
             load_path = os.path.join(
                 save_dir, label, f"{str(i).zfill(4)}_{label}.pt")
             data = torch.load(load_path)["regret"].flatten().numpy()
@@ -58,17 +62,17 @@ def main(config):
                 all_data[i] = np.concatenate((
                     d, d[-1] * np.ones(max_len - d.shape[0])))
         all_data = np.array(all_data)
-
         if plot_result:
             x = np.arange(all_data.shape[1])
             mean = pd.DataFrame(all_data).cummin(axis=1).mean(axis=0)
             std = pd.DataFrame(all_data).cummin(axis=1).std(axis=0)
-            plt.plot(x, mean, ".-", label=label, color=f'C{label_idx}')
+            plt.plot(x, mean, ".-", label=d_label[label], color=f'C{label_idx}')
             plt.fill_between(x, mean - std, mean + std,
                              color=f'C{label_idx}', alpha=0.2)
-            plt.legend()
-            plt.savefig(os.path.join(save_dir, "plot_result.pdf"))
-            plt.savefig(os.path.join(save_dir, "plot_result_png.png"))
+    if plot_result:
+        plt.legend()
+        plt.savefig(os.path.join(save_dir, "plot_result.pdf"))
+        plt.savefig(os.path.join(save_dir, "plot_result_png.png"))
 
 
 if __name__ == '__main__':
