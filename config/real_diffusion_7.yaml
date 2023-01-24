@@ -6,7 +6,7 @@ plot:
   n_stop: 100
 bo_settings:
   batch_size: 1
-  max_iters: 50
+  max_iters: 100
   # the maximum hop distance to the centre node when constructing the local context graph
   max_radius: 10     
 

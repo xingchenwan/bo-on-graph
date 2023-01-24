@@ -1,5 +1,5 @@
 label:  ["ei_ego_network_1", "random", "local_search", "dfs", "bfs"]
-save_dir: ./logs/team/nskills-2_alpha-0.05_nindiv-8/
+save_dir: ./logs/team/nskills-2_alpha-0.05_nindiv-11/
 problem_name: team_opt 
 n_exp: 10
 plot:
@@ -24,7 +24,7 @@ problem_settings:
   # SIR model settings
   n_skills: 2
   alpha: 0.05
-  n_individuals: 8
+  n_individuals: 11
   
 
 

@@ -107,7 +107,7 @@ def get_synthetic_problem(
 
     elif label == "rosenbrock":
         ground_truth = compute_synthetic_node_features(
-            g, feature_name="test_function", n=n, m=m, )
+            g, feature_name="rosenbrock", n=n, m=m, )
 
         def obj_func(idx): return ground_truth[idx]
         return SyntheticProblem(g, obj_func, problem_size=len(g.nodes), **problem_kwargs)
@@ -121,7 +121,7 @@ def get_synthetic_problem(
     
     elif label == "team_opt":
         ground_truth = compute_synthetic_node_features(
-            g, feature_name="team_opt", forward_dict=forward_dict, backward_dict=backward_dict)
+            g, feature_name="team_opt", forward_dict=forward_dict, backward_dict=backward_dict, **problem_kwargs)
 
         def obj_func(idx): return ground_truth[idx]
         return SyntheticProblem(g, obj_func, problem_size=len(g.nodes), **problem_kwargs)
@@ -216,6 +216,8 @@ def compute_synthetic_node_features(
         n_individuals = kwargs.get("n_individuals", 10)
         n_skills = kwargs.get("n_skills", 3)
         alpha = kwargs.get("alpha", 1)
+        print("What the heck is that", n_individuals)
+        print("What the heck is that2", n_skills)
         skills = np.random.dirichlet([alpha for _ in range(n_skills)], n_individuals)
         feature = dict.fromkeys(range(nnodes), 0)
         feature[0] = -1
