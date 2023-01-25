@@ -216,7 +216,7 @@ def compute_synthetic_node_features(
         for key, value in feature.items():
             if value != 0:
                 feature[key] = (1 - (feature[key] - 1) /
-                                (iteration['iteration'] + 1))**2
+                                (iteration['iteration'] + 1))
     elif feature_name == "rosenbrock":
         feature = dict.fromkeys(range(nnodes), 0)
         def rosembrock(x, y): return -100 * (y - x**2)**2 - (1 - x)**2
