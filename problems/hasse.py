@@ -1,5 +1,6 @@
 import networkx as nx
 from itertools import chain, combinations
+import numpy as np
 
 def jaccard_set(set1, set2):
     """Define Jaccard Similarity function for two sets"""
@@ -45,11 +46,18 @@ def generate_jaccard(L):
     backward_dict = dict(zip(u, range(n)))
     graph = nx.Graph()
     graph.add_nodes_from(u)
+    list_w = []
     for i in range(n):
         for j in range(i+1, n):
             w = jaccard_set(set(u[i]), set(u[j]))
-            if w > 0:
-                graph.add_edge(u[i], u[j], weight=w)
+            list_w.append(w)
+    median = np.median(np.array(list_w))
+    
+    for i in range(n):
+        for j in range(i+1, n):
+            w = jaccard_set(set(u[i]), set(u[j]))
+            if w > median:
+                graph.add_edge(u[i], u[j])
     graph = nx.relabel_nodes(graph, backward_dict)
     return graph, forward_dict, backward_dict
 

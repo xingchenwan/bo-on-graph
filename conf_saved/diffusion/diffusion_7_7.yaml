@@ -1,5 +1,5 @@
 label:  ["ei_ego_network_1", "random", "local_search", "dfs", "bfs"]
-save_dir: ./logs/diffusion/ba_m-3_beta-0.5_gamma-0.2_n-5000_epsilon-5e-3_iter-100/
+save_dir: ./logs/diffusion/ba_m-3_beta-0.5_gamma-0.2_n-5000_epsilon-5e-3_iter-100_abs/
 problem_name: diffusion
 n_exp: 10
 plot:

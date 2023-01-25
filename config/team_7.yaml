@@ -1,6 +1,6 @@
 label:  ["ei_ego_network_1", "random", "local_search", "dfs", "bfs"]
-save_dir: ./logs/diffusion/ba_m-2_beta-0.01_gamma-0.005_n-5000_epsilon-5e-4_iter-100_abs/
-problem_name: diffusion
+save_dir: ./logs/team/nskills-2_alpha-0.01_nindiv-12/
+problem_name: team_opt 
 n_exp: 10
 plot:
   n_stop: 100
@@ -8,10 +8,10 @@ bo_settings:
   batch_size: 1
   max_iters: 100
   # the maximum hop distance to the centre node when constructing the local context graph
-  max_radius: 10     
+  max_radius: 1
 
   # the init size of the local context graph. If None, it can be as big as the entire graph.
-  context_graph_nnode_init: 100
+  context_graph_nnode_init: 200
   
   tr_settings:    # settings related to the trust region on the graph search space
     n_nodes_min: 10         # the min number of nodes in the trust region
@@ -20,13 +20,12 @@ bo_settings:
     fail_tol: 30      # fail tolerance
   
 problem_settings:
-  n: 5000
-  random_graph_type: "ba"
+  random_graph_type: "jaccard" # sbm, ba, ws
   # SIR model settings
-  beta: 0.01
-  gamma: 0.005
-  m: 2
-  fraction_infected: 3e-4
-  epsilon: 0.0005
-  iteration_diffusion: 100
+  n_skills: 2
+  alpha: 1
+  n_individuals: 12
+  
 
+
+    
