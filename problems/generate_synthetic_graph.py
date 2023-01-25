@@ -224,14 +224,6 @@ def compute_synthetic_node_features(
                 return (-1)*(-20.0 * np.exp(-0.2 * np.sqrt(0.5 * (x**2 + y**2))) - np.exp(0.5 * (np.cos(2 * np.pi * x) + np.cos(2 * np.pi * y))) + np.e + 20)
         else:
             raise NotImplementedError
-        
-
-        #Normalize function
-        #min_value = 0
-        #for i in range(n):
-        #    for j in range(m):
-        #        min_value = min(test_fun(1 - (2 / n) * i, -1 + (2 / m) * j), min_value)
-        
                 
         for i in range(n):
             for j in range(m):

@@ -54,6 +54,7 @@ def run_one_replication(
         save_frequency: int = 1,
         animation: bool = False,
         animation_interval: int = 20,
+        covar_type: str = "polynomial",
 ):
     """
     Run one replication of the a supported algorithm
@@ -223,7 +224,7 @@ def run_one_replication(
     for i in range(existing_iterations, iterations):
         if len(X) > iterations * batch_size:
             break
-        if (i+1) % 2 == 0: 
+        if (i+1) % 10 == 0: 
             print(
                 f"Starting label {label}, seed {seed}, iteration {i+1}, "
                 f"time: {time() - start_time}, "

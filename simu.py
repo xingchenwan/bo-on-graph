@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import argparse
 import os
 import numpy as np
+import multiprocessing as mp
 import utils.config_utils as config_utils
 
 d_label = {"ei_ego_network_1":"bo", "random":"random", "local_search":"local_search", "dfs":"dfs", "bfs":"bfs"}
@@ -85,5 +86,49 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # load parameters
-    config = config_utils.setup(f'config/{args.config}.yaml')
+    config = config_utils.setup(f'config/ackley.yaml')
+
+
+    ## Setting list of configurations
+
+
+    #label:  ["ei_ego_network_1", "random", "local_search", "dfs", "bfs"]
+    #save_dir: ./logs/testfunction/ackley_noise-1/
+    #problem_name: test_function
+
+    #problem_settings:
+    #    n: 5000
+    #    random_graph_type: "grid" # sbm, ba, ws
+    #    test_function: "ackley"
+    #    noise: 0.
+    """
+    size_buffer_list = [50, 100]
+    N_list = [2, 5, 10]
+    T_list = [100, 500, 1000, 10000]
+    threshold_list = [0.1, 0.5, 0.7, 1.]
+    seed_list = [0, 1, 2]
+
+    paramlist = list(itertools.product(size_buffer_list, N_list, T_list, threshold_list, seed_list))
+    list_dict = []
+
+    for buffer, N, T, threshold, seed in paramlist:
+        list_dict.append({"size_buffer": buffer, "N": N, "T": T, "threshold": threshold, "seed": seed})
+    
+    N = mp.cpu_count()
+    print('Number of parallelisable cores: ', N)
+
+    with mp.Pool(processes = N) as p:
+        p.map(sim, list_dict)
+        
+    for buffer, N, T, threshold, seed in paramlist:
+        list_dict.append({"size_buffer": buffer, "N": N, "T": T, "threshold": threshold, "seed": seed})
+    
+    N = mp.cpu_count()
+    print('Number of parallelisable cores: ', N)
+
+    with mp.Pool(processes = N) as p:
+        p.map(main, list_dict)
+    """
+
+  
     main(config)
