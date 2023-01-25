@@ -23,9 +23,9 @@ def plot_result(path: str, label: str, plot_kwargs: dict = None, median=False, c
             y = data["Y"].numpy().flatten()
         data_over_seeds.append(y)
     n_data_per_trial = np.array([len(d) for d in data_over_seeds])
+    max_len = max(n_data_per_trial)
     if len(np.unique(n_data_per_trial)) > 1:
         # pad as appropriate
-        max_len = max(n_data_per_trial)
         for i, d in enumerate(data_over_seeds):
             data_over_seeds[i] = np.concatenate((
                 d, d[-1] * np.ones(max_len - d.shape[0])))
@@ -54,7 +54,7 @@ def plot_result(path: str, label: str, plot_kwargs: dict = None, median=False, c
     if "markevery" in plot_kwargs.keys():
         del plot_kwargs["markevery"]
     plt.fill_between(x, lb, ub, alpha=0.1, **plot_kwargs)
-    return y
+    return y, max_len
 
 if __name__ == "__main__":
     d_label = {"ei_ego_network_1":"bo", "random":"random", "local_search":"local_search", "dfs": "dfs", "bfs": "bfs"}
@@ -66,13 +66,16 @@ if __name__ == "__main__":
         for experiment in exp_name:
             exp_dir = os.path.join(task_dir, experiment)
             algorithm_name = [name for name in os.listdir(exp_dir) if os.path.isdir(os.path.join(exp_dir, name))]
+            min_max_len = np.inf
             for algorithm in algorithm_name:
                 alg_dir = os.path.join(exp_dir, algorithm)
                 ## Here are in directory with signal png and pt
-                y = plot_result(alg_dir, label=d_label[algorithm], median=False, cumulative=True)
+                y, max_len = plot_result(alg_dir, label=d_label[algorithm], median=False, cumulative=True)
+                min_max_len = min(min_max_len, max_len)
             plt.legend()
             plt.xlabel("#Iters")
             plt.ylabel("Objective")
+            plt.xlim([0, min_max_len])
             # plt.yscale("log")
             plt.savefig(os.path.join(exp_dir, "plot_result_regretpng.png"))
             plt.savefig(os.path.join(exp_dir, "plot_result_regretpdf.pdf"))

@@ -1,12 +1,12 @@
-label:  [ "dfs", "bfs"]
-save_dir: ./logs/diffusion/ws_k-4_p-0.2_beta-0.01_gamma-0.005_n-5000/
+label:  ["ei_ego_network_1", "random", "local_search", "dfs", "bfs"]
+save_dir: ./logs/diffusion/ba_m-3_beta-0.01_gamma-0.005_n-5000/
 problem_name: diffusion
 n_exp: 10
 plot:
   n_stop: 100
 bo_settings:
   batch_size: 1
-  max_iters: 50
+  max_iters: 80
   # the maximum hop distance to the centre node when constructing the local context graph
   max_radius: 10     
 
@@ -21,11 +21,11 @@ bo_settings:
   
 problem_settings:
   n: 5000
-  random_graph_type: "ws"
+  random_graph_type: "ba"
   # SIR model settings
-  beta: 0.01
-  gamma: 0.005
-  p: 0.2
-  k: 4
+  beta: 0.1
+  gamma: 0.05
+  m: 3
+  epsilon: 0.0005
   fraction_infected: 3e-4
-  iteration_diffusion: 500
+  iteration_diffusion: 100

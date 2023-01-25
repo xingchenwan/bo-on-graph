@@ -55,4 +55,4 @@ def generate_jaccard(L):
 
 if __name__ == "__main__":
     L = range(4)
-    generate_jachard(L)
+    generate_jaccard(L)
