@@ -9,7 +9,7 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/reproduce_plots.py",
-            //"args": ["--config", "diffusion_1_1_1"],
+            //"args": ["--config", "ackley"],
             "console": "integratedTerminal",
             "justMyCode": true
         }
