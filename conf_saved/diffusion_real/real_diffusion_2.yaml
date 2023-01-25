@@ -1,6 +1,6 @@
 label:  ["ei_ego_network_1", "random", "local_search", "dfs", "bfs"]
-save_dir: ./logs/diffusion/ba_m-2_beta-0.01_gamma-0.005_n-5000_epsilon-5e-4_iter-100/
-problem_name: diffusion
+save_dir: ./logs/diffusion_real/beta-0.1_gamma-0.005/
+problem_name: diffusion_real
 n_exp: 10
 plot:
   n_stop: 100
@@ -20,13 +20,8 @@ bo_settings:
     fail_tol: 30      # fail tolerance
   
 problem_settings:
-  n: 5000
-  random_graph_type: "ba"
+  random_graph_type: "real"
   # SIR model settings
-  beta: 0.01
+  beta: 0.1
   gamma: 0.005
-  m: 2
   fraction_infected: 3e-4
-  epsilon: 0.0005
-  iteration_diffusion: 100
-
