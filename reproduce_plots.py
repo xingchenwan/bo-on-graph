@@ -6,6 +6,9 @@ import torch
 import pandas as pd
 from copy import deepcopy
 
+d_color = {"ei_ego_network_1":"#1f77b4", "random":"#ff7f0e", "local_search":"#2ca02c", "dfs": "#d62728", "bfs": "#9467bd"}
+d_label = {"ei_ego_network_1":"BayesOptG", "random":"Random", "local_search":"Local search", "dfs": "Dfs", "bfs": "Bfs"}
+
 def plot_result(path: str, label: str, plot_kwargs: dict = None, median=False, cumulative=False, regret=True):
     plot_kwargs = deepcopy(plot_kwargs) or {}
     data_path_seeds = [f for f in os.listdir(path) if ".pt" in f]
@@ -48,16 +51,15 @@ def plot_result(path: str, label: str, plot_kwargs: dict = None, median=False, c
         mean = -mean
         lb = -lb
         ub = -ub
-    plt.plot(x, mean, ".-", label=label, **plot_kwargs)
+    plt.plot(x, mean, ".-", label=d_label[label], color=d_color[label], **plot_kwargs)
     if "alpha" in plot_kwargs.keys():
         del plot_kwargs["alpha"]
     if "markevery" in plot_kwargs.keys():
         del plot_kwargs["markevery"]
-    plt.fill_between(x, lb, ub, alpha=0.1, **plot_kwargs)
+    plt.fill_between(x, lb, ub, alpha=0.1, color=d_color[label], **plot_kwargs)
     return y, max_len
 
 if __name__ == "__main__":
-    d_label = {"ei_ego_network_1":"bo", "random":"random", "local_search":"local_search", "dfs": "dfs", "bfs": "bfs"}
     logs_dir = './logs'
     task_list = [name for name in os.listdir(logs_dir) if os.path.isdir(os.path.join(logs_dir, name))]
     for task in task_list:
@@ -70,13 +72,36 @@ if __name__ == "__main__":
             for algorithm in algorithm_name:
                 alg_dir = os.path.join(exp_dir, algorithm)
                 ## Here are in directory with signal png and pt
-                y, max_len = plot_result(alg_dir, label=d_label[algorithm], median=False, cumulative=True)
+                y, max_len = plot_result(alg_dir, label=algorithm, median=False, cumulative=True)
                 min_max_len = min(min_max_len, max_len)
             plt.legend()
             plt.xlabel("#Iters")
             plt.ylabel("Objective")
             plt.xlim([0, min_max_len])
-            # plt.yscale("log")
+            #plt.yscale("log")
             plt.savefig(os.path.join(exp_dir, "plot_result_regretpng.png"))
             plt.savefig(os.path.join(exp_dir, "plot_result_regretpdf.pdf"))
+            plt.clf()
+        
+    logs_dir = './logs'
+    task_list = [name for name in os.listdir(logs_dir) if os.path.isdir(os.path.join(logs_dir, name))]
+    for task in task_list:
+        task_dir = os.path.join(logs_dir, task)
+        exp_name = [name for name in os.listdir(task_dir) if os.path.isdir(os.path.join(task_dir, name))]
+        for experiment in exp_name:
+            exp_dir = os.path.join(task_dir, experiment)
+            algorithm_name = [name for name in os.listdir(exp_dir) if os.path.isdir(os.path.join(exp_dir, name))]
+            min_max_len = np.inf
+            for algorithm in algorithm_name:
+                alg_dir = os.path.join(exp_dir, algorithm)
+                ## Here are in directory with signal png and pt
+                y, max_len = plot_result(alg_dir, label=algorithm, median=False, cumulative=True)
+                min_max_len = min(min_max_len, max_len)
+            plt.legend()
+            plt.xlabel("#Iters")
+            plt.ylabel("Objective")
+            plt.xlim([0, min_max_len])
+            plt.yscale("log")
+            plt.savefig(os.path.join(exp_dir, "plot_result_regretlogpng.png"))
+            plt.savefig(os.path.join(exp_dir, "plot_result_regretlogpdf.pdf"))
             plt.clf()

@@ -1,6 +1,6 @@
 label:  ["ei_ego_network_1", "random", "local_search", "dfs", "bfs"]
-save_dir: ./logs/diffusion/ws_k-4_p-0.2_beta-0.2_gamma-0.005_n-5000_epsilon-5e-4_iter-100/
-problem_name: diffusion
+save_dir: ./logs/testfunction/rosenbrock_noise-0.5/
+problem_name: test_function 
 n_exp: 10
 plot:
   n_stop: 100
@@ -11,7 +11,7 @@ bo_settings:
   max_radius: 10     
 
   # the init size of the local context graph. If None, it can be as big as the entire graph.
-  context_graph_nnode_init: 100
+  context_graph_nnode_init: 200
   
   tr_settings:    # settings related to the trust region on the graph search space
     n_nodes_min: 10         # the min number of nodes in the trust region
@@ -20,12 +20,9 @@ bo_settings:
     fail_tol: 30      # fail tolerance
   
 problem_settings:
-  n: 5000
-  random_graph_type: "ws"
-  # SIR model settings
-  beta: 0.2
-  gamma: 0.005
-  m: 3
-  fraction_infected: 3e-4
-  epsilon: 0.0005
-  iteration_diffusion: 100
+  n: 1000
+  random_graph_type: "grid" # sbm, ba, ws
+  test_function: "rosenbrock"
+  noise: 0.5
+
+    
