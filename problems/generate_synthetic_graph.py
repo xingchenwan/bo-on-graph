@@ -1,8 +1,7 @@
 from multiprocessing.sharedctypes import Value
-from random import random
 import networkx as nx
 from typing import Optional, Any, Union, Tuple, Callable, Dict
-
+import random
 import numpy as np
 import torch
 from problems.base_problem import Problem
@@ -10,7 +9,7 @@ import ndlib.models.epidemics as ep
 import ndlib.models.ModelConfig as mc
 from math import sqrt
 from problems.hasse import generate_hasse, generate_jaccard
-from tqdm import tqdm
+import future.utils
 
 def get_synthetic_problem(
         label: str,
@@ -77,12 +76,12 @@ def get_synthetic_problem(
         fraction_infected = problem_kwargs.get("fraction_infected", 0.0003)
         config.add_model_parameter('beta', beta)
         config.add_model_parameter('gamma', gamma)
-
         config.add_model_parameter("fraction_infected", fraction_infected)
+
         model.set_initial_status(config)
 
         ground_truth = compute_synthetic_node_features(
-            g, feature_name="diffusion", model=model, )
+            g, feature_name="diffusion", model=model, **problem_kwargs)
 
         def obj_func(idx): return ground_truth[idx]
         return SyntheticProblem(g, obj_func, problem_size=len(g.nodes), **problem_kwargs)
@@ -100,7 +99,7 @@ def get_synthetic_problem(
         model.set_initial_status(config)
 
         ground_truth = compute_synthetic_node_features(
-            g, feature_name="diffusion", model=model, )
+            g, feature_name="diffusion", model=model, **problem_kwargs)
 
         def obj_func(idx): return ground_truth[idx]
         return SyntheticProblem(g, obj_func, problem_size=len(g.nodes), **problem_kwargs)
@@ -180,14 +179,38 @@ def compute_synthetic_node_features(
     elif feature_name == "closeness":
         feature = nx.closeness_centrality(input_graph)
     elif feature_name == "diffusion":
-        # initial status
-        feature = dict.fromkeys(range(nnodes), 0)
+        
+        # Keep track of nodes that have been infected
+        set_infected = set([node for node, nstatus in future.utils.iteritems(model.status) if nstatus == model.available_statuses['Infected']])
+        set_susceptible = [node for node, nstatus in future.utils.iteritems(model.status) if nstatus == model.available_statuses['Susceptible']]
+
+        # Get parameters
+        epsilon = kwargs.get("epsilon", 0.) # Spontaneous infection
+        iteration_max_diffusion = kwargs.get("iteration_diffusion", 100)
+        
+        
         iteration = model.iteration()
-        feature = iteration['status']
-        while (iteration['node_count'][1] != 0) and (iteration['iteration'] < 50):
+        feature = iteration['status'] # Get initial starting points for infected nodes
+        
+        while (iteration['node_count'][1] != 0) and (iteration['iteration'] < iteration_max_diffusion):
             iteration = model.iteration()
-            for key, value in iteration['status'].items():
-                if value == 1:
+            current_status = iteration['status']
+            
+            # Introduce spontaneous infections
+            n_susceptible = len(set_susceptible)
+            n_drawn = int(np.random.binomial(n=n_susceptible, p=epsilon, size=1))
+            list_spontaneous_infection = random.sample(set_susceptible, n_drawn)
+            for spontaneous_infection in list_spontaneous_infection:
+                model.status[spontaneous_infection] = 1
+            
+            # Add them to new infections and value function
+            for key in list_spontaneous_infection:
+                if key not in set_infected:
+                    set_infected.add(key)
+                    feature[key] = iteration['iteration'] + 1
+            for key, value in current_status.items():
+                if value == 1 and key not in set_infected:
+                    set_infected.add(key)
                     feature[key] = iteration['iteration'] + 1
 
         for key, value in feature.items():
@@ -216,8 +239,6 @@ def compute_synthetic_node_features(
         n_individuals = kwargs.get("n_individuals", 10)
         n_skills = kwargs.get("n_skills", 3)
         alpha = kwargs.get("alpha", 1)
-        print("What the heck is that", n_individuals)
-        print("What the heck is that2", n_skills)
         skills = np.random.dirichlet([alpha for _ in range(n_skills)], n_individuals)
         feature = dict.fromkeys(range(nnodes), 0)
         feature[0] = -1
