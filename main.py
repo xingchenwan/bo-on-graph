@@ -7,7 +7,7 @@ import os
 import numpy as np
 import utils.config_utils as config_utils
 
-d_label = {"ei_ego_network_1":"bo", "random":"random", "local_search":"local_search", "dfs":"dfs", "bfs":"bfs"}
+d_label = {"ei_ego_network_1":"bo", "ei_ego_network_2":"bo_2", "random":"random", "local_search":"local_search", "dfs":"dfs", "bfs":"bfs"}
 
 def main(config):
 
@@ -42,8 +42,6 @@ def main(config):
                 animation=animate,
                 trust_region_kwargs=getattr(
                     config.bo_settings, "tr_settings", None),
-                covar_type=getattr(
-                    config.bo_settings, "covar_type", "polynomial"), #diffusion also possible
                 problem_kwargs=getattr(config, "problem_settings", None),
             )
 

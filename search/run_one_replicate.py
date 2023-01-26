@@ -54,7 +54,6 @@ def run_one_replication(
         save_frequency: int = 1,
         animation: bool = False,
         animation_interval: int = 20,
-        covar_type: str = "polynomial",
 ):
     """
     Run one replication of the a supported algorithm
@@ -334,19 +333,35 @@ def run_one_replication(
             else:
                 # create remappers to convert raw X into indices in terms of the new context graph
                 X_mapped = index_remapper(X_).to(**tkwargs)
-                model, mll, cached_eigenbasis = initialize_model(
-                    train_X=X_mapped,
-                    train_Y=Y_,
-                    context_graph=context_graph,
-                    covar_type="polynomial",
-                    ard=True,
-                    use_fixed_noise=True,
-                    use_saas_map=False,
-                    fit_model=True,
-                    cached_eigenbasis=cached_eigenbasis,
-                    use_cached_eigenbasis=use_cached_eigenbasis,
-                    optim_kwargs=model_optim_kwargs,
-                )
+                if label == "ei_ego_network_1":
+                    model, mll, cached_eigenbasis = initialize_model(
+                        train_X=X_mapped,
+                        train_Y=Y_,
+                        context_graph=context_graph,
+                        covar_type="polynomial",
+                        ard=True,
+                        use_fixed_noise=True,
+                        use_saas_map=False,
+                        fit_model=True,
+                        cached_eigenbasis=cached_eigenbasis,
+                        use_cached_eigenbasis=use_cached_eigenbasis,
+                        optim_kwargs=model_optim_kwargs,
+                    )
+                elif label == "ei_ego_network_2":
+                    model, mll, cached_eigenbasis = initialize_model(
+                        train_X=X_mapped,
+                        train_Y=Y_,
+                        context_graph=context_graph,
+                        covar_type="diffusion",
+                        ard=True,
+                        use_fixed_noise=True,
+                        use_saas_map=False,
+                        fit_model=True,
+                        cached_eigenbasis=cached_eigenbasis,
+                        use_cached_eigenbasis=use_cached_eigenbasis,
+                        optim_kwargs=model_optim_kwargs,
+                    )
+                
                 if not is_moo:
                     acq_func = get_acqf(
                         model,

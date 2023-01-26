@@ -206,25 +206,12 @@ def compute_synthetic_node_features(
         for key, value in feature.items():
             if value != 0:
                 feature[key] = (1 - (feature[key] - 1) /
-<<<<<<< HEAD
-                                (iteration['iteration'] + 1))
-    elif feature_name == "rosenbrock":
-        feature = dict.fromkeys(range(nnodes), 0)
-        def rosembrock(x, y): return -100 * (y - x**2)**2 - (1 - x)**2
-        # def rosembrock(x, y): return -y**2 - x**2 + 10
-        for i in range(n):
-            for j in range(m):
-                feature[i * m +
-                        j] = rosembrock(2 - (4 / n) * i, -2 + (4 / m) * j)
-    elif feature_name == "sphere":
-=======
                                 (iteration['iteration'] + 1))**2
     elif feature_name == "test_function":
         n = kwargs.get("n", 5000)
         noise = kwargs.get("noise", 0.)
         n, m = int(sqrt(n)), int(sqrt(n))
         test_function = kwargs.get("function", "rosenbrock")
->>>>>>> 2764fe9f8f0460efa706cccc6db2b693781502f5
         feature = dict.fromkeys(range(nnodes), 0)
         if test_function == "rosenbrock":
             def test_fun(x, y): return -100 * (2*y - 4*x**2)**2 - (1 - 2*x)**2

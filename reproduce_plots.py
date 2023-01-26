@@ -7,11 +7,9 @@ import torch
 import pandas as pd
 from copy import deepcopy
 matplotlib.rcParams.update({'font.size': 15})
-d_color = {"ei_ego_network_1":"#1f77b4", "random":"#ff7f0e", "local_search":"#2ca02c", "dfs": "#d62728", "bfs": "#9467bd"}
-d_label = {"ei_ego_network_1":"BayesOptG", "random":"Random", "local_search":"Local search", "dfs": "Dfs", "bfs": "Bfs"}
 
-d_color = {"ei_ego_network_1":"#1f77b4", "random":"#ff7f0e", "local_search":"#2ca02c", "dfs": "#d62728", "bfs": "#9467bd"}
-d_label = {"ei_ego_network_1":"BayesOptG", "random":"Random", "local_search":"Local search", "dfs": "Dfs", "bfs": "Bfs"}
+d_color = {"ei_ego_network_1":"#1f77b4", "ei_ego_network_2":"#8c564b", "random":"#ff7f0e", "local_search":"#2ca02c", "dfs": "#d62728", "bfs": "#9467bd"}
+d_label = {"ei_ego_network_1":"BayesOptG_Poly", "ei_ego_network_2":"BayesOptG_Diff", "random":"Random", "local_search":"Local search", "dfs": "Dfs", "bfs": "Bfs"}
 
 def plot_result(path: str, label: str, plot_kwargs: dict = None, median=False, cumulative=False, regret=True):
     plot_kwargs = deepcopy(plot_kwargs) or {}
@@ -84,13 +82,8 @@ if __name__ == "__main__":
             plt.ylabel("Objective")
             plt.xlim([0, min_max_len])
             #plt.yscale("log")
-<<<<<<< HEAD
-            plt.savefig(os.path.join(exp_dir, "plot_result_regretpng.png"))
-            plt.savefig(os.path.join(exp_dir, "plot_result_regretpdf.pdf"))
-=======
             plt.savefig(os.path.join(exp_dir, "plot_result_regretpng.png"), bbox_inches='tight')
             plt.savefig(os.path.join(exp_dir, "plot_result_regretpdf.pdf"), bbox_inches='tight')
->>>>>>> 2764fe9f8f0460efa706cccc6db2b693781502f5
             plt.clf()
         
     logs_dir = './logs'
@@ -112,11 +105,6 @@ if __name__ == "__main__":
             plt.ylabel("Objective")
             plt.xlim([0, min_max_len])
             plt.yscale("log")
-<<<<<<< HEAD
-            plt.savefig(os.path.join(exp_dir, "plot_result_regretlogpng.png"))
-            plt.savefig(os.path.join(exp_dir, "plot_result_regretlogpdf.pdf"))
-=======
             plt.savefig(os.path.join(exp_dir, "plot_result_regretlogpng.png"), bbox_inches='tight')
             plt.savefig(os.path.join(exp_dir, "plot_result_regretlogpdf.pdf"), bbox_inches='tight')
->>>>>>> 2764fe9f8f0460efa706cccc6db2b693781502f5
             plt.clf()
