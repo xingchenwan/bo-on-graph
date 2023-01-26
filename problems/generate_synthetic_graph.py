@@ -104,16 +104,9 @@ def get_synthetic_problem(
         def obj_func(idx): return ground_truth[idx]
         return SyntheticProblem(g, obj_func, problem_size=len(g.nodes), **problem_kwargs)
 
-    elif label == "rosenbrock":
+    elif label == "test_function":
         ground_truth = compute_synthetic_node_features(
-            g, feature_name="rosenbrock", n=n, m=m, )
-
-        def obj_func(idx): return ground_truth[idx]
-        return SyntheticProblem(g, obj_func, problem_size=len(g.nodes), **problem_kwargs)
-    
-    elif label == "sphere":
-        ground_truth = compute_synthetic_node_features(
-            g, feature_name="sphere", n=n, m=m, )
+            g, feature_name="test_function", **problem_kwargs)
 
         def obj_func(idx): return ground_truth[idx]
         return SyntheticProblem(g, obj_func, problem_size=len(g.nodes), **problem_kwargs)
@@ -164,10 +157,7 @@ def compute_synthetic_node_features(
         input_graph: nx.Graph,
         feature_name: str = "betweenness",
         model: ep.SIRModel = None,
-        n=None,
-        m=None,
         forward_dict: dict = None,
-        backward_dict: dict = None,
         **kwargs
 ):
     nnodes = len(input_graph)
@@ -217,22 +207,28 @@ def compute_synthetic_node_features(
             if value != 0:
                 feature[key] = (1 - (feature[key] - 1) /
                                 (iteration['iteration'] + 1))**2
-    elif feature_name == "rosenbrock":
+    elif feature_name == "test_function":
+        n = kwargs.get("n", 5000)
+        noise = kwargs.get("noise", 0.)
+        n, m = int(sqrt(n)), int(sqrt(n))
+        test_function = kwargs.get("function", "rosenbrock")
         feature = dict.fromkeys(range(nnodes), 0)
-        def rosembrock(x, y): return -100 * (y - x**2)**2 - (1 - x)**2
-        # def rosembrock(x, y): return -y**2 - x**2 + 10
+        if test_function == "rosenbrock":
+            def test_fun(x, y): return -100 * (2*y - 4*x**2)**2 - (1 - 2*x)**2
+        elif test_function == "sphere":
+            def test_fun(x, y): return -y**2 - x**2
+        elif test_function == "ackley":
+            def test_fun(x, y):
+                x *= 1
+                y *= 1
+                return (-1)*(-20.0 * np.exp(-0.2 * np.sqrt(0.5 * (x**2 + y**2))) - np.exp(0.5 * (np.cos(2 * np.pi * x) + np.cos(2 * np.pi * y))) + np.e + 20)
+        else:
+            raise NotImplementedError
+                
         for i in range(n):
             for j in range(m):
                 feature[i * m +
-                        j] = rosembrock(2 - (4 / n) * i, -2 + (4 / m) * j)
-    elif feature_name == "sphere":
-        feature = dict.fromkeys(range(nnodes), 0)
-        def sphere(x, y): return -x**2 - y**2
-        # def rosembrock(x, y): return -y**2 - x**2 + 10
-        for i in range(n):
-            for j in range(m):
-                feature[i * m +
-                        j] = sphere(2 - (4 / n) * i, -2 + (4 / m) * j)
+                        j] = (test_fun(1 - (2 / n) * i, -1 + (2 / m) * j)) + np.random.normal(loc = 0., scale=noise)
     elif feature_name == "team_opt":
         
         ## Compute netropy defined before

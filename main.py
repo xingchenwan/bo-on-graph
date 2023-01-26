@@ -7,7 +7,7 @@ import os
 import numpy as np
 import utils.config_utils as config_utils
 
-d_label = {"ei_ego_network_1":"bo", "random":"random", "local_search":"local_search", "dfs":"dfs", "bfs":"bfs"}
+d_label = {"ei_ego_network_1":"bo", "ei_ego_network_2":"bo_2", "random":"random", "local_search":"local_search", "dfs":"dfs", "bfs":"bfs"}
 
 def main(config):
 

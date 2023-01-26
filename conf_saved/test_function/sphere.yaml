@@ -1,6 +1,6 @@
 label:  ["ei_ego_network_1", "random", "local_search", "dfs", "bfs"]
 save_dir: ./logs/testfunction/sphere/
-problem_name: sphere 
+problem_name: test_function 
 n_exp: 10
 plot:
   n_stop: 100
@@ -23,7 +23,8 @@ problem_settings:
   n: 80
   random_graph_type: "grid" # sbm, ba, ws
   # feature_name: "eigenvector_centrality"
-  
+  function: "sphere"
+  noise: 0.01
   # m: 3
   # p: 0.2
   # k: 4
