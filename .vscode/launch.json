@@ -8,8 +8,8 @@
             "name": "bo on graph",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/reproduce_plots.py",
-            //"args": ["--config", "ackley"],
+            "program": "${workspaceFolder}/main.py",
+            "args": ["--config", "diffusion_3"],
             "console": "integratedTerminal",
             "justMyCode": true
         }

@@ -1,6 +1,6 @@
-label:  ["ei_ego_network_1", "random", "local_search", "dfs", "bfs"]
-save_dir: ./logs/diffusion/ba_m-2_beta-0.2_gamma-0.05_n-5000_epsilon-5e-4_iter-100/
-problem_name: diffusion
+label:  ["ei_ego_network_1", "ei_ego_network_2"]
+save_dir: ./logs/centrality/ws_k-10_p-0.7_tr/
+problem_name: centrality
 n_exp: 10
 plot:
   n_stop: 100
@@ -20,12 +20,10 @@ bo_settings:
     fail_tol: 30      # fail tolerance
   
 problem_settings:
-  n: 5000
-  random_graph_type: "ba"
+  n: 1000
+  random_graph_type: "ws" #"ws" # sbm, ba, ws
+  feature_name: "betweenness" #"eigenvector_centrality"
   # SIR model settings
-  beta: 0.2
-  gamma: 0.05
-  m: 2
-  fraction_infected: 3e-4
-  epsilon: 0.0005
-  iteration_diffusion: 100
+  k: 10
+  p: 0.7
+

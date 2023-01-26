@@ -1,5 +1,5 @@
 label:  ["ei_ego_network_1", "ei_ego_network_2"]
-save_dir: ./logs/centrality/ws_k-4_p-0.7_tr/
+save_dir: ./logs/centrality/ws_k-4_p-0.7_notr/
 problem_name: centrality
 n_exp: 10
 plot:
@@ -10,7 +10,7 @@ bo_settings:
   # the maximum hop distance to the centre node when constructing the local context graph
   max_radius: 10     
 
-  # the init size of the local context graph. If None, it can be as big as the entire graph.
+  # the init size of the local context graph. If null, it can be as big as the entire graph.
   context_graph_nnode_init: null
   
   tr_settings:    # settings related to the trust region on the graph search space

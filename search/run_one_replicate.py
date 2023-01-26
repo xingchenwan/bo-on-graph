@@ -30,6 +30,7 @@ supported_labels = [
     "ei_ego_network_1",
     "dfs",
     "bfs",
+    "ei_ego_network_2",
 ]
 
 

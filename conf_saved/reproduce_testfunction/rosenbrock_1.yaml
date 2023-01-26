@@ -1,6 +1,6 @@
-label:  ["ei_ego_network_1", "ei_ego_network_2"]
-save_dir: ./logs/centrality/ws_k-4_p-0.7_tr/
-problem_name: centrality
+label:  ["ei_ego_network_1", "random", "local_search", "dfs", "bfs"]
+save_dir: ./logs/testfunction/rosenbrock_noise-0.1/
+problem_name: test_function 
 n_exp: 10
 plot:
   n_stop: 100
@@ -11,19 +11,20 @@ bo_settings:
   max_radius: 10     
 
   # the init size of the local context graph. If None, it can be as big as the entire graph.
-  context_graph_nnode_init: null
+  context_graph_nnode_init: 200
+  covar_type: "polynomial"
   
   tr_settings:    # settings related to the trust region on the graph search space
     n_nodes_min: 10         # the min number of nodes in the trust region
-    trust_region_multiplier: 1.5
+    trust_region_multiplier: 1.5 
     succ_tol: 10       # success tolerance
     fail_tol: 30      # fail tolerance
   
 problem_settings:
-  n: 1000
-  random_graph_type: "ws" #"ws" # sbm, ba, ws
-  feature_name: "betweenness" #"eigenvector_centrality"
-  # SIR model settings
-  k: 4
-  p: 0.7
+  n: 3000
+  random_graph_type: "grid" # sbm, ba, ws
+  test_function: "rosenbrock"
+  noise: 0.
 
+
+    

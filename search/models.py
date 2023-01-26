@@ -19,7 +19,7 @@ from botorch.acquisition import (ExpectedImprovement,
                                  qNoisyExpectedImprovement,
                                  UpperConfidenceBound,
                                  qUpperConfidenceBound)
-from botorch.sampling.normal import SobolQMCNormalSampler
+from botorch.sampling.samplers import SobolQMCNormalSampler
 from math import log
 import botorch
 from botorch.utils.transforms import standardize
@@ -141,7 +141,7 @@ def initialize_model(
             # when order is not explicitly specified,
             if covar_type == "diffusion":
                 order = min(
-                    order, train_X.shape[-2]) if order else int(train_X.shape[-2] // 2)
+                    order, train_X.shape[-2]) if order else max(int(train_X.shape[-2] // 2), 1)
             elif covar_type == "polynomial":
                 order = min(order, nx.radius(context_graph)
                             ) if order else min(5, nx.radius(context_graph))
