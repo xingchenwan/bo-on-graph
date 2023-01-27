@@ -354,6 +354,7 @@ def run_one_replication(
                         train_Y=Y_,
                         context_graph=context_graph,
                         covar_type="diffusion",
+                        covar_kwargs = {"order": 3,}, ## No order means context graph size
                         ard=True,
                         use_fixed_noise=True,
                         use_saas_map=False,

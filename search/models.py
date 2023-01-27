@@ -141,12 +141,10 @@ def initialize_model(
             # when order is not explicitly specified,
             if covar_type == "diffusion":
                 order = min(
-                    order, train_X.shape[-2]) if order else max(int(train_X.shape[-2] // 2), 1)
+                    order, train_X.shape[-2]) if order else len(context_graph)
             elif covar_type == "polynomial":
                 order = min(order, nx.radius(context_graph)
                             ) if order else min(5, nx.radius(context_graph))
-                order = len(context_graph)
-
             if ard:
                 ard_num_dims = order
             else:

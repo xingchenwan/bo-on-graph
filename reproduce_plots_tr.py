@@ -8,8 +8,8 @@ import pandas as pd
 from copy import deepcopy
 matplotlib.rcParams.update({'font.size': 15})
 
-d_color = {"ei_ego_network_1":"#1f77b4", "ei_ego_network_2":"#8c564b", "random":"#ff7f0e", "local_search":"#2ca02c", "dfs": "#d62728", "bfs": "#9467bd"}
-d_label = {"ei_ego_network_1":"BayesOptG_Poly", "ei_ego_network_2":"BayesOptG_Diff", "random":"Random", "local_search":"Local search", "dfs": "Dfs", "bfs": "Bfs"}
+d_color = {"ei_ego_network_1":"#1f77b4", "ei_ego_network_2":"#8c564b", "ei_ego_network_1_tr":"#ff7f0e", "ei_ego_network_2_tr":"#2ca02c"}
+d_label = {"ei_ego_network_1":"BayesOptG_Poly_Full", "ei_ego_network_2":"BayesOptG_Diff_Full", "ei_ego_network_1_tr":"BayesOptG_Poly_TR", "ei_ego_network_2_tr":"BayesOptG_Diff_TR"}
 
 def plot_result(path: str, label: str, plot_kwargs: dict = None, median=False, cumulative=False, regret=True):
     plot_kwargs = deepcopy(plot_kwargs) or {}
@@ -62,7 +62,7 @@ def plot_result(path: str, label: str, plot_kwargs: dict = None, median=False, c
     return y, max_len
 
 if __name__ == "__main__":
-    logs_dir = './logs/centrality'
+    logs_dir = './logs'
     task_list = [name for name in os.listdir(logs_dir) if os.path.isdir(os.path.join(logs_dir, name))]
     for task in task_list:
         task_dir = os.path.join(logs_dir, task)
@@ -74,19 +74,21 @@ if __name__ == "__main__":
             for algorithm in algorithm_name:
                 alg_dir = os.path.join(exp_dir, algorithm)
                 ## Here are in directory with signal png and pt
+                print(algorithm)
                 y, max_len = plot_result(alg_dir, label=algorithm, median=False, cumulative=True)
                 min_max_len = min(min_max_len, max_len)
-            print(min_max_len)
             plt.legend()
             plt.xlabel("#Iters")
             plt.ylabel("Objective")
             plt.xlim([0, min_max_len])
             #plt.yscale("log")
+            print(os.path.join(exp_dir, "plot_result_regretpng.png"))
+            print(min_max_len)
             plt.savefig(os.path.join(exp_dir, "plot_result_regretpng.png"), bbox_inches='tight')
             plt.savefig(os.path.join(exp_dir, "plot_result_regretpdf.pdf"), bbox_inches='tight')
             plt.clf()
-        
-    logs_dir = './logs/centrality'
+    """
+    logs_dir = './logs'
     task_list = [name for name in os.listdir(logs_dir) if os.path.isdir(os.path.join(logs_dir, name))]
     for task in task_list:
         task_dir = os.path.join(logs_dir, task)
@@ -108,3 +110,4 @@ if __name__ == "__main__":
             plt.savefig(os.path.join(exp_dir, "plot_result_regretlogpng.png"), bbox_inches='tight')
             plt.savefig(os.path.join(exp_dir, "plot_result_regretlogpdf.pdf"), bbox_inches='tight')
             plt.clf()
+    """
