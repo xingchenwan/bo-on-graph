@@ -211,7 +211,7 @@ def compute_synthetic_node_features(
         n = kwargs.get("n", 5000)
         noise = kwargs.get("noise", 0.)
         n, m = int(sqrt(n)), int(sqrt(n))
-        test_function = kwargs.get("function", "rosenbrock")
+        test_function = kwargs.get("test_function", "rosenbrock")
         feature = dict.fromkeys(range(nnodes), 0)
         if test_function == "rosenbrock":
             def test_fun(x, y): return -100 * (2*y - 4*x**2)**2 - (1 - 2*x)**2
@@ -219,8 +219,6 @@ def compute_synthetic_node_features(
             def test_fun(x, y): return -y**2 - x**2
         elif test_function == "ackley":
             def test_fun(x, y):
-                x *= 1
-                y *= 1
                 return (-1)*(-20.0 * np.exp(-0.2 * np.sqrt(0.5 * (x**2 + y**2))) - np.exp(0.5 * (np.cos(2 * np.pi * x) + np.cos(2 * np.pi * y))) + np.e + 20)
         else:
             raise NotImplementedError
