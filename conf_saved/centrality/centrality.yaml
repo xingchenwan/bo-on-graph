@@ -1,5 +1,5 @@
-label:  [ "dfs", "bfs"]
-save_dir: ./logs/centrality/ba_eigen_m-3_ninit-20_n-1000/
+label:  ["ei_ego_network_2"]
+save_dir: ./logs/centrality/ba_betweeness_m-2_ninit-20_n-1000/
 problem_name: centrality
 n_exp: 10
 plot:
@@ -22,18 +22,7 @@ bo_settings:
 problem_settings:
   n: 1000
   random_graph_type: "ba" #"ws" # sbm, ba, ws
-  feature_name: "eigenvector_centrality" #"betweenness" eigenvector_centrality
+  feature_name: "betweenness" #"betweenness" eigenvector_centrality
   n_init: 20
-  m: 3
-  p: 0.2
-  k: 4
-  # log: True
-  # p: 0.4
-  # p: [[0.25, 0.02, 0.01], [0.02, 0.35, 0.07], [0.01, 0.07, 0.40]]
-  # sizes: [75, 75, 300]
-  # k: 4
-  # log: True
-  # p: 0.4
-  # k: 3
-
+  m: 2
     

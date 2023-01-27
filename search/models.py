@@ -19,7 +19,7 @@ from botorch.acquisition import (ExpectedImprovement,
                                  qNoisyExpectedImprovement,
                                  UpperConfidenceBound,
                                  qUpperConfidenceBound)
-from botorch.sampling.samplers import SobolQMCNormalSampler
+from botorch.sampling.normal import SobolQMCNormalSampler
 from math import log
 import botorch
 from botorch.utils.transforms import standardize
@@ -145,6 +145,7 @@ def initialize_model(
             elif covar_type == "polynomial":
                 order = min(order, nx.radius(context_graph)
                             ) if order else min(5, nx.radius(context_graph))
+                order = len(context_graph)
 
             if ard:
                 ard_num_dims = order

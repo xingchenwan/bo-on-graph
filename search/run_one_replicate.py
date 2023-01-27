@@ -461,7 +461,19 @@ def run_one_replication(
                 }
                 with open(os.path.join(save_path, f"{str(seed).zfill(4)}_{label}.pt"), "wb") as fp:
                     torch.save(output_dict, fp)
-        #print(f"Current candidate {candidates}")
+            # Do something with model
+
+            if problem_kwargs["plot_spectral"] and ((i+1) % 20 == 0):
+                epsilon = 1e-6
+                x_spectral = torch.linspace(0,2,500)[1:]
+                y_spectral = torch.stack(
+                    [x_spectral ** i for i in range(model.covar_module.base_kernel.order)]
+                )
+
+                y_spectral = (torch.einsum("ij,i->ij", y_spectral, model.covar_module.base_kernel.lengthscale.squeeze(0)) + epsilon).sum(0).squeeze()
+                torch.save(y_spectral, f"./plot_spectral/exp5/values_{i}.pt")
+                
+
 
     # Save the final output
     if hasattr(base_function, "ground_truth"):

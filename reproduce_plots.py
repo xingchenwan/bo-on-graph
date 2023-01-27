@@ -11,9 +11,6 @@ matplotlib.rcParams.update({'font.size': 15})
 d_color = {"ei_ego_network_1":"#1f77b4", "ei_ego_network_2":"#8c564b", "random":"#ff7f0e", "local_search":"#2ca02c", "dfs": "#d62728", "bfs": "#9467bd"}
 d_label = {"ei_ego_network_1":"BayesOptG_Poly", "ei_ego_network_2":"BayesOptG_Diff", "random":"Random", "local_search":"Local search", "dfs": "Dfs", "bfs": "Bfs"}
 
-d_color = {"ei_ego_network_1":"#1f77b4", "random":"#ff7f0e", "local_search":"#2ca02c", "dfs": "#d62728", "bfs": "#9467bd"}
-d_label = {"ei_ego_network_1":"BayesOptG", "random":"Random", "local_search":"Local search", "dfs": "Dfs", "bfs": "Bfs"}
-
 def plot_result(path: str, label: str, plot_kwargs: dict = None, median=False, cumulative=False, regret=True):
     plot_kwargs = deepcopy(plot_kwargs) or {}
     data_path_seeds = [f for f in os.listdir(path) if ".pt" in f]

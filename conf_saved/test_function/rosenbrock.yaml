@@ -1,4 +1,4 @@
-label:  ["ei_ego_network_1", "random", "local_search", "dfs", "bfs"]
+label:  ["ei_ego_network_1", "random", "local_search", "dfs", "bfs", "ei_ego_network_2"]
 save_dir: ./logs/testfunction/rosenbrock_noise-0/
 problem_name: test_function 
 n_exp: 10

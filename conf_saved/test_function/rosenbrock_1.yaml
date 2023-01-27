@@ -1,4 +1,4 @@
-label:  ["ei_ego_network_1", "random", "local_search", "dfs", "bfs"]
+label:  ["ei_ego_network_1", "random", "local_search", "dfs", "bfs", "ei_ego_network_2"]
 save_dir: ./logs/testfunction/rosenbrock_noise-0.1/
 problem_name: test_function 
 n_exp: 10
@@ -21,7 +21,7 @@ bo_settings:
     fail_tol: 30      # fail tolerance
   
 problem_settings:
-  n: 3000
+  n: 1000
   random_graph_type: "grid" # sbm, ba, ws
   test_function: "rosenbrock"
   noise: 0.

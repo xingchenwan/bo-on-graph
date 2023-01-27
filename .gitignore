@@ -1,5 +1,8 @@
 /.idea/
 /logs
+/logs_saved
+/config
+/conf_saved
 /data
 *.pyc
 *.pt

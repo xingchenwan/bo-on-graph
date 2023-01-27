@@ -9,7 +9,7 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/main.py",
-            "args": ["--config", "diffusion_3"],
+            "args": ["--config", "sphere_1"],
             "console": "integratedTerminal",
             "justMyCode": true
         }

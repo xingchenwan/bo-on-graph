@@ -1,5 +1,5 @@
-label:  ["ei_ego_network_1", "random", "local_search", "dfs", "bfs"]
-save_dir: ./logs/diffusion_real/beta-0.2_gamma-0.15/
+label:  ["ei_ego_network_1", "random", "local_search", "dfs", "bfs", "ei_ego_network_2"]
+save_dir: ./logs/diffusion_real/beta-0.2_gamma-0.01/
 problem_name: diffusion_real
 n_exp: 10
 plot:
@@ -23,5 +23,5 @@ problem_settings:
   random_graph_type: "real"
   # SIR model settings
   beta: 0.2
-  gamma: 0.15
+  gamma: 0.01
   fraction_infected: 3e-4

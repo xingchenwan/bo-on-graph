@@ -1,4 +1,4 @@
-label:  ["ei_ego_network_1", "random", "local_search", "dfs", "bfs"]
+label:  ["ei_ego_network_1", "random", "local_search", "dfs", "bfs", "ei_ego_network_2"]
 save_dir: ./logs/diffusion_real/beta-0.5_gamma-0.01/
 problem_name: diffusion_real
 n_exp: 10
