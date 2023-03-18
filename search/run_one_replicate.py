@@ -55,6 +55,7 @@ def run_one_replication(
         save_frequency: int = 1,
         animation: bool = False,
         animation_interval: int = 20,
+        order=None,
 ):
     """
     Run one replication of the a supported algorithm
@@ -340,6 +341,7 @@ def run_one_replication(
                         train_Y=Y_,
                         context_graph=context_graph,
                         covar_type="polynomial",
+                        covar_kwargs = {"order": order,}, ## No order means context graph size
                         ard=True,
                         use_fixed_noise=True,
                         use_saas_map=False,

@@ -8,12 +8,7 @@
             "name": "bo on graph",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/main.py",
-<<<<<<< HEAD
-            "args": ["--config", "sphere_1"],
-=======
-            "args": ["--config", "diffusion_6"],
->>>>>>> 7dc3cf37557b75fde1bab7bbbcc27118b1106f00
+            "program": "${workspaceFolder}/test_script.py",
             "console": "integratedTerminal",
             "justMyCode": true
         }
