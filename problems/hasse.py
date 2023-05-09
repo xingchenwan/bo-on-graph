@@ -32,7 +32,7 @@ def generate_hasse(L):
     return graph, forward_dict, backward_dict
 
 
-def generate_jaccard(L):
+def generate_jaccard(L, threshold = None):
     #wegihted graph with intersection over union as weight
     """Generate weighted diagram"""
 
@@ -51,12 +51,13 @@ def generate_jaccard(L):
         for j in range(i+1, n):
             w = jaccard_set(set(u[i]), set(u[j]))
             list_w.append(w)
-    median = np.median(np.array(list_w))
+    if threshold == None:
+        threshold = np.median(np.array(list_w))
     
     for i in range(n):
         for j in range(i+1, n):
             w = jaccard_set(set(u[i]), set(u[j]))
-            if w > median:
+            if w > threshold:
                 graph.add_edge(u[i], u[j])
     graph = nx.relabel_nodes(graph, backward_dict)
     return graph, forward_dict, backward_dict

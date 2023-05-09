@@ -143,8 +143,11 @@ def initialize_model(
                 order = min(
                     order, train_X.shape[-2]) if order else len(context_graph)
             elif covar_type == "polynomial":
-                order = min(order, nx.radius(context_graph)
-                            ) if order else min(5, nx.radius(context_graph))
+                if order == None:
+                    order = min(5, nx.radius(context_graph))
+                
+                #order = min(order, nx.radius(context_graph)
+                #            ) if order else min(5, nx.radius(context_graph))
             if ard:
                 ard_num_dims = order
             else:

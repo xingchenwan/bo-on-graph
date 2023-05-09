@@ -63,11 +63,10 @@ def plot_result(path: str, label: str, plot_kwargs: dict = None, median=False, c
     return y, max_len
 
 if __name__ == "__main__":
-    logs_dir = ['logs/centrality/ba_eigen_m-2_ninit-20_n-1000-test/Q_value_10/ei_ego_network_1', 'logs/centrality/ba_eigen_m-2_ninit-20_n-1000-test/Q_value_50/ei_ego_network_1', 'logs/centrality/ba_eigen_m-2_ninit-20_n-1000-test/Q_value_100/ei_ego_network_1', 'logs/centrality/ba_eigen_m-2_ninit-20_n-1000-test/Q_value_200/ei_ego_network_1', 'logs/centrality/ba_eigen_m-2_ninit-20_n-1000-test/Q_value_500/ei_ego_network_1']
-    Q = [10,50,100,200,500]
+    logs_dir = ['logs/centrality/ba_eigen_m-2_ninit-20_n-1000-Q/Q_10/ei_ego_network_1', 'logs/centrality/ba_eigen_m-2_ninit-20_n-1000-Q/Q_50/ei_ego_network_1', 'logs/centrality/ba_eigen_m-2_ninit-20_n-1000-Q/Q_100/ei_ego_network_1', 'logs/centrality/ba_eigen_m-2_ninit-20_n-1000-Q/Q_200/ei_ego_network_1', 'logs/centrality/ba_eigen_m-2_ninit-20_n-1000-Q/Q_500/ei_ego_network_1']
+    list_Q = [10, 50, 100, 200, 500]
     for i, log_dir in enumerate(logs_dir):
-        
-        y, max_len = plot_result(log_dir, label=f'Q_0 = {Q[i]}', median=False, cumulative=True)
+        y, max_len = plot_result(log_dir, label=f'Q0 = {list_Q[i]}', median=False, cumulative=True)
         #min_max_len = min(min_max_len, max_len)
         min_max_len = max_len
     plt.legend()
@@ -75,11 +74,11 @@ if __name__ == "__main__":
     plt.ylabel("Objective")
     plt.xlim([0, min_max_len])
     #plt.yscale("log")
-    print(os.path.join('logs/centrality/ba_eigen_m-2_ninit-20_n-1000-test/', "plot_result_regretpng.png"))
+    print(os.path.join('logs/centrality/ba_eigen_m-2_ninit-20_n-1000-Q/', "plot_result_regretpng.png"))
     print(min_max_len)
-    plt.savefig(os.path.join('logs/centrality/ba_eigen_m-2_ninit-20_n-1000-test/', "plot_result_regretpng.png"), bbox_inches='tight')
-    plt.savefig(os.path.join('logs/centrality/ba_eigen_m-2_ninit-20_n-1000-test/', "plot_result_regretpdf.pdf"), bbox_inches='tight')
-    plt.clf()
+    plt.savefig(os.path.join('logs/centrality/ba_eigen_m-2_ninit-20_n-1000-Q/', "plot_result_regretpng.png"), bbox_inches='tight')
+    plt.savefig(os.path.join('logs/centrality/ba_eigen_m-2_ninit-20_n-1000-Q/', "plot_result_regretpdf.pdf"), bbox_inches='tight')
+    plt.show()
     """
     logs_dir = './logs'
     task_list = [name for name in os.listdir(logs_dir) if os.path.isdir(os.path.join(logs_dir, name))]

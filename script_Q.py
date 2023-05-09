@@ -25,11 +25,11 @@ def main(config):
 
     assert hasattr(config, "bo_settings")
 
-    list_eta = [1, 2, 5, 10, 15, 20]
+    list_Q = [10, 50, 100, 200, 500]
     label = "ei_ego_network_1"
 
-    for _, eta in enumerate(list_eta):
-        save_path = os.path.join(save_dir, f"eta_value_{eta}")
+    for _, Q in enumerate(list_Q):
+        save_path = os.path.join(save_dir, f"Q_{Q}")
         for i in range(n_exp):
             run_one_replication(
                 label=label,
@@ -41,12 +41,12 @@ def main(config):
                 iterations=getattr(config.bo_settings, "max_iters", 50),
                 max_radius=getattr(config.bo_settings, "max_radius", 10),
                 context_graph_nnode_init=getattr(
-                    config.bo_settings, "context_graph_nnode_init", 100),
+                    config.bo_settings, "context_graph_nnode_init", Q),
                 animation=animate,
                 trust_region_kwargs=getattr(
                     config.bo_settings, "tr_settings", None),
                 problem_kwargs=getattr(config, "problem_settings", None),
-                order=eta,
+                order=2,
             )
 
     for label_idx, label in enumerate(labels):

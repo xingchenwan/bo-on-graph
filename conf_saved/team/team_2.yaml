@@ -22,10 +22,10 @@ bo_settings:
 problem_settings:
   random_graph_type: "jaccard" # sbm, ba, ws
   # SIR model settings
-  n_skills: 4
+  n_skills: 2
   alpha: 0.01
-  n_individuals: 12
-  
+  n_individuals: 10
+  threshold: 0.1
 
 
     

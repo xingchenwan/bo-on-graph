@@ -48,7 +48,8 @@ def get_synthetic_problem(
         g, forward_dict, backward_dict = generate_hasse(range(n_individuals))
     elif random_graph_type == "jaccard":
         n_individuals = problem_kwargs.get("n_individuals")
-        g, forward_dict, backward_dict = generate_jaccard(range(n_individuals))
+        thres = problem_kwargs.get("threshold", None)
+        g, forward_dict, backward_dict = generate_jaccard(range(n_individuals), threshold=thres)
     elif random_graph_type == "real":
         g = nx.from_edgelist(np.load("./com_edge_list.npy"))
         dict_relabel = {}
@@ -239,8 +240,8 @@ def compute_synthetic_node_features(
         for i in range(1, nnodes):
             subset_skills = skills[np.array(forward_dict[i])]
             subset_skills_avg = subset_skills.mean(axis = 0)
-            entropy_skills = -subset_skills * np.log(subset_skills)
-            obj_value = np.sum(-subset_skills_avg*np.log(subset_skills_avg)) - np.mean(np.sum(entropy_skills, axis = 1))
+            entropy_skills = -subset_skills * np.log(subset_skills + 1e-5)
+            obj_value = np.sum(-subset_skills_avg*np.log(subset_skills_avg + 1e-5)) - np.mean(np.sum(entropy_skills, axis = 1))
             feature[i] = obj_value
     else:
         f = getattr(nx, feature_name, None)
