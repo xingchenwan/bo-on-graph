@@ -11,7 +11,7 @@ from gpytorch.likelihoods import GaussianLikelihood
 from gpytorch.constraints import GreaterThan, Interval
 from gpytorch.priors import GammaPrior
 from gpytorch.mlls import SumMarginalLogLikelihood, ExactMarginalLogLikelihood
-from .kernels import DiffusionGraphKernel, PolynomialKernel
+from .kernels import DiffusionGraphKernel, PolynomialKernel, PolynomialKernelNew
 from .utils import eigendecompose_laplacian, local_search, fit_gpytorch_model, filter_invalid, gen_k_fold_cv_folds
 from botorch.acquisition import (ExpectedImprovement,
                                  NoisyExpectedImprovement,
@@ -58,7 +58,8 @@ def initialize_model(
         train_Yvar = torch.full_like(
             train_Y, 1e-7) * train_Y.std(dim=0).pow(2)
     covar_kwargs = covar_kwargs or {}
-
+    optim_options = dict(lr=0.1, mu_0=0.1, train_iters=100)
+    optim_options.update(optim_kwargs or {})
     # MAP variant of SAAS-GP. Use a grid of \taus (that determine the scale of the Half-cauchy
     #   prior governing the lengthscales, and then run cross validation to choose the best
     #   model.
@@ -132,17 +133,19 @@ def initialize_model(
         base_model_class = FixedNoiseGP if (
             use_fixed_noise and not torch.isnan(train_Yvar).any()) else SingleTaskGP
         covar_kwargs = covar_kwargs or {}
-        if covar_type in ["polynomial", "diffusion"]:
+        if covar_type in ["polynomial", "diffusion", "polynomial_new"]:
             if covar_type == "polynomial":
                 base_covar_class = PolynomialKernel
             elif covar_type == "diffusion":
                 base_covar_class = DiffusionGraphKernel
+            else:
+                base_covar_class = PolynomialKernelNew
             order = covar_kwargs.get("order", None)
             # when order is not explicitly specified,
             if covar_type == "diffusion":
                 order = min(
                     order, train_X.shape[-2]) if order else len(context_graph)
-            elif covar_type == "polynomial":
+            elif covar_type in ["polynomial", "polynomial_new"]::
                 if order == None:
                     order = min(5, nx.radius(context_graph))
                 
@@ -199,12 +202,81 @@ def initialize_model(
             mll = ExactMarginalLogLikelihood(
                 model.likelihood, model).to(device=train_X.device)
         if fit_model:
-            with gpytorch.settings.debug(False):
-                fit_gpytorch_model(mll, model, train_X,
-                                   train_Y, **optim_kwargs)
+            if covar_type in ["polynomial", "diffusion"]:
+                with gpytorch.settings.debug(False):
+                    fit_gpytorch_model(mll, model, train_X,
+                                       train_Y, **optim_options)
+            else:
+                fit_gpytorch_model_with_constraints(
+                    mll, model, train_X, train_Y, **optim_options)
 
     return model, mll, cached_eigenbasis
 
+def fit_gpytorch_model_with_constraints(
+    mll, model, train_x, train_Y, train_iters: int = 100,
+    lr: float = 0.1,
+    print_interval: int = 10,
+    mu_0: float = 0.01,
+    return_loss: bool = False
+):
+    r"""Fit the GP model for the new polynomial kernel. Note that for this model,
+    we do not constrain individual ``\betas` to be non-negative and the only
+    constraint is that they sum to positive. That is:
+    Optimize log likelihood
+    s.t. \betaB > 0.
+    To solve the constrained optimization problem, we use a barrier function as
+    additional penalty term on the log likelihood to penalize violation of the
+    constraints.
+    """
+
+    # Pre-compute the Lambda (eigenvalue and their power)
+    eigen_powered = torch.cat(
+        [(model.covar_module.base_kernel.eigenvalues ** i).reshape(1, -1)
+         for i in range(model.covar_module.base_kernel.order)]
+    )  # Shape (order, n)
+
+    def mu_scheduler(current_step: int, total_step: int, mu_init: float):
+        """Simple linear annealing (to 0) for the mu (the coeffient on the barriers).
+        """
+        return (1. - (current_step / total_step)) * mu_init
+
+    with gpytorch.settings.debug(False):
+        # Includes GaussianLikelihood parameters
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+        # Learning rate scheduler
+        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=train_iters)
+        model.train()
+        model.likelihood.train()
+        for i in range(train_iters):
+            # Get the constant before the barrier function
+            mu = mu_scheduler(i, train_iters, mu_0)
+            # Zero gradients from previous iteration
+            optimizer.zero_grad()
+            # Output from model
+            output = model(train_x)
+            # Calc loss and backprop gradients
+            loss = -mll(output, model.train_targets)
+
+            # Calculate the penalty
+            constraint = [torch.sum(model.covar_module.base_kernel.beta *
+                                    eigen_powered[:, j]).reshape(-1) for j in range(eigen_powered.shape[1])]
+            constraint = torch.cat(constraint)
+            penalty = torch.log(constraint).sum()
+
+            if loss.ndim > 0:
+                loss = loss.sum()
+            if print_interval > 0 and (i + 1) % print_interval == 0:
+                print(f"Iter {i+1}/{train_iters}: "
+                      f"Loss={loss.item()}. Penalty={mu * penalty}"
+                      f"beta={model.covar_module.base_kernel.beta}")
+            loss -= mu * penalty
+            loss.backward()
+            optimizer.step()
+            lr_scheduler.step()
+    if return_loss:
+        return model, loss.item()
+    return model
 
 def get_acqf(
         model,
