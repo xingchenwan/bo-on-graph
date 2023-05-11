@@ -3,7 +3,8 @@ import gpytorch.kernels
 from gpytorch.kernels import Kernel
 import torch
 from typing import Optional
-from search.utils import eigendecompose_laplacian
+#from search.utils import eigendecompose_laplacian
+from .utils import eigendecompose_laplacian
 import networkx as nx
 
 
@@ -144,7 +145,7 @@ class PolynomialKernelNew(DiffusionGraphKernel):
 
 
         default_beta_prior = gpytorch.priors.NormalPrior(
-            torch.zeros(self.order), 1e-1*torch.ones(self.order))
+            torch.zeros(self.order), torch.ones(self.order))
         beta_prior = beta_prior if beta_prior is not None else default_beta_prior
         # Note that we require the betas to be initialized as non-negative (but
         # individual betas are allowed to go negative during optimization), so
@@ -152,22 +153,34 @@ class PolynomialKernelNew(DiffusionGraphKernel):
         self.register_prior(
             "beta_prior", beta_prior, lambda m: m.beta
         )
-        # Set random initialization by sampling from the prior
-        init_beta = torch.abs(beta_prior.sample())
+
+        # Calculate the penalty
+        penalty = torch.tensor([torch.nan])
+        x = torch.linspace(0,1, 100)
+        while torch.isnan(penalty).any():
+            init_beta = beta_prior.sample()
+            x_result = 1e-6 * torch.ones(x.shape[0])
+            for i in range(init_beta.shape[0]):
+                x_result += init_beta[i]*x**i
+            penalty = torch.log(x_result)
+            print(f"Initialisation kernel... Penalty {penalty}")
+        init_beta = torch.abs(init_beta)
         self.register_parameter(
             name="beta", parameter=torch.nn.Parameter(init_beta)
         )
 
     def get_dist(self):
+        epsilon = 1e-6
         # Note the definition of the B matrix here -- we directly power the eigenvalues
         # without the inversion in the previous iteration.
         eigen_powered = torch.cat(
             [(self.eigenvalues ** i).reshape(1, -1) for i in range(self.order)]
         )  # shape: (self.order, n)
         # This is the B matrix
-        dists = torch.einsum("ij,i->ij", eigen_powered,
-                             self.beta.squeeze(0))
+        #dists = torch.einsum("ij,i->ij", eigen_powered,self.beta.squeeze(0))
         # Sum B matrix
+        dists = 1. / (torch.einsum("ij,i->ij", eigen_powered,
+                                   self.beta.squeeze(0)) + epsilon)
         dists = torch.diag(dists.sum(0).squeeze())
         dists *= self.eigenvalues.shape[0] / torch.sum(dists)
         # print(dists, self.beta)

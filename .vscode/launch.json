@@ -8,7 +8,7 @@
             "name": "bo on graph",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/test_script.py",
+            "program": "${workspaceFolder}/search/models.py",
             "console": "integratedTerminal",
             "justMyCode": true
         }

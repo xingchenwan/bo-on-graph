@@ -11,6 +11,7 @@ from gpytorch.likelihoods import GaussianLikelihood
 from gpytorch.constraints import GreaterThan, Interval
 from gpytorch.priors import GammaPrior
 from gpytorch.mlls import SumMarginalLogLikelihood, ExactMarginalLogLikelihood
+
 from .kernels import DiffusionGraphKernel, PolynomialKernel, PolynomialKernelNew
 from .utils import eigendecompose_laplacian, local_search, fit_gpytorch_model, filter_invalid, gen_k_fold_cv_folds
 from botorch.acquisition import (ExpectedImprovement,
@@ -23,7 +24,7 @@ from botorch.sampling.normal import SobolQMCNormalSampler
 from math import log
 import botorch
 from botorch.utils.transforms import standardize
-
+from search.utils import binary_search, compute_penalty
 
 def initialize_model(
         train_X: torch.Tensor,
@@ -58,8 +59,6 @@ def initialize_model(
         train_Yvar = torch.full_like(
             train_Y, 1e-7) * train_Y.std(dim=0).pow(2)
     covar_kwargs = covar_kwargs or {}
-    optim_options = dict(lr=0.1, mu_0=0.1, train_iters=100)
-    optim_options.update(optim_kwargs or {})
     # MAP variant of SAAS-GP. Use a grid of \taus (that determine the scale of the Half-cauchy
     #   prior governing the lengthscales, and then run cross validation to choose the best
     #   model.
@@ -145,7 +144,7 @@ def initialize_model(
             if covar_type == "diffusion":
                 order = min(
                     order, train_X.shape[-2]) if order else len(context_graph)
-            elif covar_type in ["polynomial", "polynomial_new"]::
+            elif covar_type in ["polynomial", "polynomial_new"]:
                 if order == None:
                     order = min(5, nx.radius(context_graph))
                 
@@ -203,10 +202,14 @@ def initialize_model(
                 model.likelihood, model).to(device=train_X.device)
         if fit_model:
             if covar_type in ["polynomial", "diffusion"]:
+                optim_options = dict(lr=0.1, train_iters=100)
+                optim_options.update(optim_kwargs or {})
                 with gpytorch.settings.debug(False):
                     fit_gpytorch_model(mll, model, train_X,
                                        train_Y, **optim_options)
             else:
+                optim_options = dict(lr=0.1, mu_0=0.1, train_iters=100)
+                optim_options.update(optim_kwargs or {})
                 fit_gpytorch_model_with_constraints(
                     mll, model, train_X, train_Y, **optim_options)
 
@@ -216,8 +219,9 @@ def fit_gpytorch_model_with_constraints(
     mll, model, train_x, train_Y, train_iters: int = 100,
     lr: float = 0.1,
     print_interval: int = 10,
-    mu_0: float = 0.01,
-    return_loss: bool = False
+    mu_0: float = 0.1,
+    return_loss: bool = False,
+    frequency_update = 10
 ):
     r"""Fit the GP model for the new polynomial kernel. Note that for this model,
     we do not constrain individual ``\betas` to be non-negative and the only
@@ -228,29 +232,44 @@ def fit_gpytorch_model_with_constraints(
     additional penalty term on the log likelihood to penalize violation of the
     constraints.
     """
-
+    
     # Pre-compute the Lambda (eigenvalue and their power)
     eigen_powered = torch.cat(
         [(model.covar_module.base_kernel.eigenvalues ** i).reshape(1, -1)
          for i in range(model.covar_module.base_kernel.order)]
     )  # Shape (order, n)
 
-    def mu_scheduler(current_step: int, total_step: int, mu_init: float):
+    def mu_scheduler(current_step: int, total_step: int, mu_init: float, frequency_update: int):
         """Simple linear annealing (to 0) for the mu (the coeffient on the barriers).
         """
-        return (1. - (current_step / total_step)) * mu_init
+        if ((current_step + 1) % frequency_update) == 0:
+            print(f"I should be updated {0.5*mu_init}")
+            return 0.5*mu_init
+        else:
+            return mu_init
+    
+    def mu_schedulerbis(current_step: int, total_step: int, mu_init: float, frequency_update: int):
+        """Simple linear annealing (to 0) for the mu (the coeffient on the barriers).
+        """
+        if ((current_step + 1) % frequency_update) == 0:
+            return (1. - (current_step / total_step)) * mu_init
+        else:
+            return mu_init
 
     with gpytorch.settings.debug(False):
         # Includes GaussianLikelihood parameters
-        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+        #optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+        optimizer = torch.optim.SGD(model.parameters(), lr=lr)
+        #optimizer = Custom_SGD(model.parameters(), lr=lr, eigen_powered=eigen_powered)
         # Learning rate scheduler
-        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            optimizer, T_max=train_iters)
+        #lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        #    optimizer, T_max=train_iters)
         model.train()
         model.likelihood.train()
+        mu = mu_0
         for i in range(train_iters):
             # Get the constant before the barrier function
-            mu = mu_scheduler(i, train_iters, mu_0)
+            mu = mu_scheduler(i, train_iters, mu, frequency_update)
             # Zero gradients from previous iteration
             optimizer.zero_grad()
             # Output from model
@@ -263,17 +282,39 @@ def fit_gpytorch_model_with_constraints(
                                     eigen_powered[:, j]).reshape(-1) for j in range(eigen_powered.shape[1])]
             constraint = torch.cat(constraint)
             penalty = torch.log(constraint).sum()
+            #m = torch.nn.Softplus(beta=1)
+            #penalty = -m(-constraint).sum()
 
             if loss.ndim > 0:
                 loss = loss.sum()
             if print_interval > 0 and (i + 1) % print_interval == 0:
                 print(f"Iter {i+1}/{train_iters}: "
-                      f"Loss={loss.item()}. Penalty={mu * penalty}"
+                      f"Loss={loss.item()}. Penalty={-mu * penalty}. Mu={mu}. "
                       f"beta={model.covar_module.base_kernel.beta}")
             loss -= mu * penalty
             loss.backward()
+            
+            ##Add function to dampen gradient of beta
+            print("Debugging")
+            t = binary_search(optimizer.param_groups[0]["lr"], model.covar_module.base_kernel.beta.detach().clone(), model.covar_module.base_kernel.beta.grad.detach().clone(), eigen_powered)
+            print("Value of t", t)
+            print("Penalty before:", compute_penalty(0., optimizer.param_groups[0]["lr"], model.covar_module.base_kernel.beta.detach().clone(), model.covar_module.base_kernel.beta.grad.detach().clone(), eigen_powered))
+            # Calculate the penalty
+            constraint = [torch.sum(model.covar_module.base_kernel.beta *
+                                    eigen_powered[:, j]).reshape(-1) for j in range(eigen_powered.shape[1])]
+            constraint = torch.cat(constraint)
+            penalty = torch.log(constraint).sum()
+            print("Penalty with log", torch.log(constraint))
+            model.covar_module.base_kernel.beta.grad *= t
+            
             optimizer.step()
-            lr_scheduler.step()
+            print("Penalty after:", compute_penalty(0., optimizer.param_groups[0]["lr"], model.covar_module.base_kernel.beta.detach().clone(), model.covar_module.base_kernel.beta.grad.detach().clone(), eigen_powered))
+            constraint = [torch.sum(model.covar_module.base_kernel.beta *
+                                    eigen_powered[:, j]).reshape(-1) for j in range(eigen_powered.shape[1])]
+            constraint = torch.cat(constraint)
+            penalty = torch.log(constraint).sum()
+            print("Penalty with log", torch.log(constraint))
+            #lr_scheduler.step()
     if return_loss:
         return model, loss.item()
     return model
@@ -375,3 +416,74 @@ def optimize_acqf(
         ).tolist()
     # nodes_to_eval = torch.cat(nodes_to_eval)
     return torch.tensor(nodes_to_eval)
+
+
+if __name__ == "__main__":
+    # test the GP cross validation
+    from problems import get_synthetic_problem
+    import torch
+    from search.trust_region import (
+        restart,
+    )
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import seaborn as sns
+    from search.utils import eigendecompose_laplacian
+    from search.kernels import DiffusionGraphKernel, PolynomialKernel, PolynomialKernelNew
+
+    n = 100
+    base_problem = get_synthetic_problem(
+        "test_function", 
+        n=n, 
+        seed=2,
+        problem_kwargs={
+            "log": False, 
+            "random_graph_type": "grid",
+            "m": 1,
+            "n": n,
+            "test_function": "sphere"
+            }
+        )
+    
+    all_X = torch.arange(len(base_problem.context_graph)).to(torch.float)
+    all_Y = base_problem(all_X.reshape(-1, 1))
+
+    # X = candidates.reshape(-1, 1).to(dtype=torch.float)
+    from botorch.utils.transforms import standardize
+    n_init = len(all_X)
+    X = all_X.reshape(-1, 1)
+
+
+    # Y = base_problem(X.reshape(-1, 1))
+    Y = all_Y.reshape(-1, 1).to(dtype=torch.float)
+    Y = standardize(Y)
+
+    best_loc = Y.argmax().item()
+    X_best = X[best_loc]
+
+    n_train = int(n_init * 0.25)
+    ntrain_indices = np.random.choice(n_init, n_train, replace=False)
+    ntest_indices = np.array([i for i in range(n_init) if i not in ntrain_indices])
+    X_train, Y_train = X[ntrain_indices, ...], Y[ntrain_indices]
+    X_test, Y_test = X[ntest_indices, ...], Y[ntest_indices, ...]
+
+
+    model, mll, cached_eigenbasis = initialize_model(
+                train_X=X_train,
+                train_Y=Y_train,
+                context_graph=base_problem.context_graph,
+                covar_type="polynomial_new",
+                covar_kwargs = {
+                    "order": 5,
+                     },
+                fit_model=True,
+                ard=True,
+                use_fixed_noise=False,
+                optim_kwargs = {
+                    "train_iters": 10,
+                    "lr": 0.1,
+                    "mu_0": 0.1,
+                    "frequency_update":10
+                },
+                use_saas_map=False
+                )

@@ -347,3 +347,32 @@ def gen_k_fold_cv_folds(
         train_Yvar=train_Yvar_cv,
         test_Yvar=test_Yvar_cv,
     )
+
+
+def compute_penalty(t, lr, beta, beta_grad, eigen_powered):
+        "Check if constraints satisfied, return 1 if not satisfied and 0 otherwise"
+        hypothetical_params = beta - t*lr*beta_grad
+        constraint = [torch.sum(hypothetical_params * eigen_powered[:, j]).reshape(-1) for j in range(eigen_powered.shape[1])]
+        constraint = torch.cat(constraint)
+        result = int((constraint < 0).any())
+        return result
+    
+def binary_search(lr, beta, beta_grad, eigen_powered):
+    result = compute_penalty(1., lr, beta, beta_grad, eigen_powered)
+    result_0 = compute_penalty(0., lr, beta, beta_grad, eigen_powered)
+    print("Value at 0", result_0)
+    if result:
+        low = 0.
+        high = 1.
+        mid = 0
+        while high - low >= 1e-4:
+            mid = (high + low) / 2
+            result = compute_penalty(mid, lr, beta, beta_grad, eigen_powered)
+            # If x is greater, ignore left half
+            if result:
+                high = mid
+            else:
+                low = mid
+        return low
+    else:
+        return 1.
