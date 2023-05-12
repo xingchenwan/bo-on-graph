@@ -14,11 +14,11 @@ def create_path(save_path, problem_name, problem_kwargs):
     if problem_name == "diffusion":
         if problem_kwargs["random_graph_type"] == "ba":
             s = "_".join([problem_kwargs["random_graph_type"], f'm-{problem_kwargs["m"]}', f'beta-{problem_kwargs["beta"]}', f'gamma-{problem_kwargs["gamma"]}',
-                f'n-{problem_kwargs["n"]}', f'epsilon-{problem_kwargs["epsilon"]}', f'gamma-{problem_kwargs["gamma"]}', f'iter-{problem_kwargs["iter"]}'
+                f'n-{problem_kwargs["n"]}', f'epsilon-{problem_kwargs["epsilon"]}', f'gamma-{problem_kwargs["gamma"]}', f'iter-{problem_kwargs["iteration_diffusion"]}'
                 ])
         elif problem_kwargs["random_graph_type"] == "ws":
             s = "_".join([problem_kwargs["random_graph_type"], f'k-{problem_kwargs["k"]}', f'p-{problem_kwargs["p"]}', f'beta-{problem_kwargs["beta"]}', f'gamma-{problem_kwargs["gamma"]}',
-                f'n-{problem_kwargs["n"]}', f'epsilon-{problem_kwargs["epsilon"]}', f'gamma-{problem_kwargs["gamma"]}', f'iter-{problem_kwargs["iter"]}'
+                f'n-{problem_kwargs["n"]}', f'epsilon-{problem_kwargs["epsilon"]}', f'gamma-{problem_kwargs["gamma"]}', f'iter-{problem_kwargs["iteration_diffusion"]}'
                 ])
     elif problem_name == "diffusion_real":
         s = "_".join([f'beta-{problem_kwargs["beta"]}', f'gamma-{problem_kwargs["gamma"]}'])
