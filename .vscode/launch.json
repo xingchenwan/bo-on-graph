@@ -8,7 +8,8 @@
             "name": "bo on graph",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/search/models.py",
+            "program": "${workspaceFolder}/main.py",
+            "args": ["--config", "centrality"],
             "console": "integratedTerminal",
             "justMyCode": true
         }

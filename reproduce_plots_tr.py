@@ -27,6 +27,7 @@ def plot_result(path: str, label: str, plot_kwargs: dict = None, median=False, c
             assert "Y" in data.keys()
             y = data["Y"].numpy().flatten()
         data_over_seeds.append(y)
+    print(data_path_seeds)
     n_data_per_trial = np.array([len(d) for d in data_over_seeds])
     max_len = max(n_data_per_trial)
     if len(np.unique(n_data_per_trial)) > 1:

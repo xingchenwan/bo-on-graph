@@ -343,7 +343,7 @@ def run_one_replication(
                         covar_type="polynomial",
                         covar_kwargs = {"order": order,}, ## No order means context graph size
                         ard=True,
-                        use_fixed_noise=True,
+                        use_fixed_noise=False,
                         use_saas_map=False,
                         fit_model=True,
                         cached_eigenbasis=cached_eigenbasis,
@@ -356,9 +356,9 @@ def run_one_replication(
                         train_Y=Y_,
                         context_graph=context_graph,
                         covar_type="diffusion",
-                        covar_kwargs = {"order": 3,}, ## No order means context graph size
+                        covar_kwargs = {"order": len(context_graph.nodes),}, ## Change to order size context graph
                         ard=True,
-                        use_fixed_noise=True,
+                        use_fixed_noise=False,
                         use_saas_map=False,
                         fit_model=True,
                         cached_eigenbasis=cached_eigenbasis,
@@ -466,15 +466,15 @@ def run_one_replication(
                     torch.save(output_dict, fp)
             # Do something with model
 
-            if problem_kwargs["plot_spectral"] and ((i+1) % 20 == 0):
-                epsilon = 1e-6
-                x_spectral = torch.linspace(0,2,500)[1:]
-                y_spectral = torch.stack(
-                    [x_spectral ** i for i in range(model.covar_module.base_kernel.order)]
-                )
+            # if problem_kwargs["plot_spectral"] and ((i+1) % 20 == 0):
+            #     epsilon = 1e-6
+            #     x_spectral = torch.linspace(0,2,500)[1:]
+            #     y_spectral = torch.stack(
+            #         [x_spectral ** i for i in range(model.covar_module.base_kernel.order)]
+            #     )
 
-                y_spectral = (torch.einsum("ij,i->ij", y_spectral, model.covar_module.base_kernel.lengthscale.squeeze(0)) + epsilon).sum(0).squeeze()
-                torch.save(y_spectral, f"./plot_spectral/exp5/values_{i}.pt")
+            #     y_spectral = (torch.einsum("ij,i->ij", y_spectral, model.covar_module.base_kernel.lengthscale.squeeze(0)) + epsilon).sum(0).squeeze()
+            #     torch.save(y_spectral, f"./plot_spectral/exp5/values_{i}.pt")
                 
 
 
