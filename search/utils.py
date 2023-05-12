@@ -349,25 +349,30 @@ def gen_k_fold_cv_folds(
     )
 
 
-def compute_penalty(t, lr, beta, beta_grad, eigen_powered):
+def compute_penalty(t, lr, model):
         "Check if constraints satisfied, return 1 if not satisfied and 0 otherwise"
-        hypothetical_params = beta - t*lr*beta_grad
-        constraint = [torch.sum(hypothetical_params * eigen_powered[:, j]).reshape(-1) for j in range(eigen_powered.shape[1])]
-        constraint = torch.cat(constraint)
-        result = int((constraint < 0).any())
-        return result
+        epsilon = 1e-6
+        # Note the definition of the B matrix here -- we directly power the eigenvalues
+        # without the inversion in the previous iteration.
+        eigen_powered = torch.cat(
+            [(model.covar_module.base_kernel.eigenvalues ** i).reshape(1, -1) for i in range(model.covar_module.base_kernel.order)]
+        )  # shape: (self.order, n)
+        # This is the B matrix
+        #dists = torch.einsum("ij,i->ij", eigen_powered,self.beta.squeeze(0))
+        # Sum B matrix
+        dists = torch.einsum("ij,i->ij", eigen_powered, (model.covar_module.base_kernel.beta - t*lr*model.covar_module.base_kernel.beta.grad).squeeze(0))
+        dists = 1/(dists.sum(0).squeeze() + epsilon)
+        return ((dists <= 0).any())
     
-def binary_search(lr, beta, beta_grad, eigen_powered):
-    result = compute_penalty(1., lr, beta, beta_grad, eigen_powered)
-    result_0 = compute_penalty(0., lr, beta, beta_grad, eigen_powered)
-    print("Value at 0", result_0)
+def binary_search(lr, model):
+    result = compute_penalty(1., lr, model)
     if result:
         low = 0.
         high = 1.
         mid = 0
-        while high - low >= 1e-4:
+        while high - low >= 1e-3:
             mid = (high + low) / 2
-            result = compute_penalty(mid, lr, beta, beta_grad, eigen_powered)
+            result = compute_penalty(mid, lr, model)
             # If x is greater, ignore left half
             if result:
                 high = mid
