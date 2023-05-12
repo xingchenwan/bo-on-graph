@@ -39,10 +39,10 @@ def eigendecompose_laplacian(
 
 
 def fit_gpytorch_model(mll, model, train_x, train_y,
-                       train_iters: int = 100,
+                       train_iters: int = 600,
                        lr: float = 0.1,
                        print_interval: int = -1,
-                       return_loss: bool = False):
+                       return_loss: bool = True):
     with gpytorch.settings.debug(False):
         # Includes GaussianLikelihood parameters
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)

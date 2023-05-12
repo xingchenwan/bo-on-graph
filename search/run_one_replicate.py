@@ -126,18 +126,18 @@ def run_one_replication(
             base_function.obj_func,
             save_path=os.path.join(save_path, "animations")
         )
-    if seed == 9:
-        all_X = torch.arange(len(base_function.context_graph)).to(torch.float)
-        all_Y = base_function(all_X.reshape(-1, 1))
-        eigenvals, eigenvecs = eigendecompose_laplacian(base_function.context_graph)
-        plt.subplot(121)
-        plt.title("Function signal")
-        plt.stem(torch.abs(eigenvecs.T @ all_Y))
-        plt.subplot(122)
-        plt.title("Eigenvalues")
-        plt.stem(eigenvals.flatten())
-        plt.savefig(os.path.join(save_path, "plot_signal.png"))
-        plt.clf()
+    # if seed == 9:
+    #     all_X = torch.arange(len(base_function.context_graph)).to(torch.float)
+    #     all_Y = base_function(all_X.reshape(-1, 1))
+    #     eigenvals, eigenvecs = eigendecompose_laplacian(base_function.context_graph)
+    #     plt.subplot(121)
+    #     plt.title("Function signal")
+    #     plt.stem(torch.abs(eigenvecs.T @ all_Y))
+    #     plt.subplot(122)
+    #     plt.title("Eigenvalues")
+    #     plt.stem(eigenvals.flatten())
+    #     plt.savefig(os.path.join(save_path, "plot_signal.png"))
+    #     plt.clf()
 
     # generate initial data
     n_initial_points = n_initial_points or 20
