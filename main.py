@@ -35,7 +35,7 @@ def create_path(save_path, problem_name, problem_kwargs):
     return save_path
 
 
-d_label = {"ei_ego_network_1":"bo", "ei_ego_network_2":"bo_2", "random":"random", "local_search":"local_search", "dfs":"dfs", "bfs":"bfs"}
+#d_label = {"ei_ego_network_1":"bo", "ei_ego_network_2":"bo_2", "random":"random", "local_search":"local_search", "dfs":"dfs", "bfs":"bfs"}
 
 ## TODO Manage option for gpu
 if __name__ == "__main__":
@@ -106,35 +106,35 @@ if __name__ == "__main__":
                         problem_kwargs=problem_kwargs,
                     )
 
-            for label_idx, label in enumerate(labels):
-                all_data = all_data_over_labels[label]
-                for i in range(n_exp):
-                    load_path = os.path.join(
-                        save_path, label, f"{str(i).zfill(4)}_{label}.pt")
-                    data = torch.load(load_path)["regret"].flatten().numpy()
-                    all_data.append(data)
-                n_data_per_trial = np.array([len(d) for d in all_data])
+            # for label_idx, label in enumerate(labels):
+            #     all_data = all_data_over_labels[label]
+            #     for i in range(n_exp):
+            #         load_path = os.path.join(
+            #             save_path, label, f"{str(i).zfill(4)}_{label}.pt")
+            #         data = torch.load(load_path)["regret"].flatten().numpy()
+            #         all_data.append(data)
+            #     n_data_per_trial = np.array([len(d) for d in all_data])
 
-                # whether the data are rugged
-                if len(np.unique(n_data_per_trial)) > 1:
-                    # pad as appropriate
-                    max_len = max(n_data_per_trial)
-                    for i, d in enumerate(all_data):
-                        all_data[i] = np.concatenate((
-                            d, d[-1] * np.ones(max_len - d.shape[0])))
-                all_data = np.array(all_data)
-                if plot_result:
-                    x = np.arange(all_data.shape[1])
-                    mean = pd.DataFrame(all_data).cummin(axis=1).mean(axis=0)
-                    std = pd.DataFrame(all_data).cummin(axis=1).std(axis=0)
-                    plt.plot(x, mean, ".-", label=d_label[label], color=f'C{label_idx}')
-                    plt.fill_between(x, mean - std, mean + std,
-                                        color=f'C{label_idx}', alpha=0.2)
-            if plot_result:
-                plt.legend()
-                plt.savefig(os.path.join(save_path, "plot_result.pdf"))
-                plt.savefig(os.path.join(save_path, "plot_result_png.png"))
-                plt.clf()
+            #     # whether the data are rugged
+            #     if len(np.unique(n_data_per_trial)) > 1:
+            #         # pad as appropriate
+            #         max_len = max(n_data_per_trial)
+            #         for i, d in enumerate(all_data):
+            #             all_data[i] = np.concatenate((
+            #                 d, d[-1] * np.ones(max_len - d.shape[0])))
+            #     all_data = np.array(all_data)
+            #     if plot_result:
+            #         x = np.arange(all_data.shape[1])
+            #         mean = pd.DataFrame(all_data).cummin(axis=1).mean(axis=0)
+            #         std = pd.DataFrame(all_data).cummin(axis=1).std(axis=0)
+            #         plt.plot(x, mean, ".-", label=d_label[label], color=f'C{label_idx}')
+            #         plt.fill_between(x, mean - std, mean + std,
+            #                             color=f'C{label_idx}', alpha=0.2)
+            # if plot_result:
+            #     plt.legend()
+            #     plt.savefig(os.path.join(save_path, "plot_result.pdf"))
+            #     plt.savefig(os.path.join(save_path, "plot_result_png.png"))
+            #     plt.clf()
 
 
     else:
@@ -159,32 +159,32 @@ if __name__ == "__main__":
                     problem_kwargs=problem_kwargs,
                 )
     
-        for label_idx, label in enumerate(labels):
-            all_data = all_data_over_labels[label]
-            for i in range(n_exp):
-                load_path = os.path.join(
-                    save_path, label, f"{str(i).zfill(4)}_{label}.pt")
-                data = torch.load(load_path)["regret"].flatten().numpy()
-                all_data.append(data)
-            n_data_per_trial = np.array([len(d) for d in all_data])
+        # for label_idx, label in enumerate(labels):
+        #     all_data = all_data_over_labels[label]
+        #     for i in range(n_exp):
+        #         load_path = os.path.join(
+        #             save_path, label, f"{str(i).zfill(4)}_{label}.pt")
+        #         data = torch.load(load_path)["regret"].flatten().numpy()
+        #         all_data.append(data)
+        #     n_data_per_trial = np.array([len(d) for d in all_data])
 
-            # whether the data are rugged
-            if len(np.unique(n_data_per_trial)) > 1:
-                # pad as appropriate
-                max_len = max(n_data_per_trial)
-                for i, d in enumerate(all_data):
-                    all_data[i] = np.concatenate((
-                        d, d[-1] * np.ones(max_len - d.shape[0])))
-            all_data = np.array(all_data)
-            if plot_result:
-                x = np.arange(all_data.shape[1])
-                mean = pd.DataFrame(all_data).cummin(axis=1).mean(axis=0)
-                std = pd.DataFrame(all_data).cummin(axis=1).std(axis=0)
-                plt.plot(x, mean, ".-", label=d_label[label], color=f'C{label_idx}')
-                plt.fill_between(x, mean - std, mean + std,
-                                    color=f'C{label_idx}', alpha=0.2)
-        if plot_result:
-            plt.legend()
-            plt.savefig(os.path.join(save_path, "plot_result.pdf"))
-            plt.savefig(os.path.join(save_path, "plot_result_png.png"))
-            plt.clf()
+        #     # whether the data are rugged
+        #     if len(np.unique(n_data_per_trial)) > 1:
+        #         # pad as appropriate
+        #         max_len = max(n_data_per_trial)
+        #         for i, d in enumerate(all_data):
+        #             all_data[i] = np.concatenate((
+        #                 d, d[-1] * np.ones(max_len - d.shape[0])))
+        #     all_data = np.array(all_data)
+        #     if plot_result:
+        #         x = np.arange(all_data.shape[1])
+        #         mean = pd.DataFrame(all_data).cummin(axis=1).mean(axis=0)
+        #         std = pd.DataFrame(all_data).cummin(axis=1).std(axis=0)
+        #         plt.plot(x, mean, ".-", label=d_label[label], color=f'C{label_idx}')
+        #         plt.fill_between(x, mean - std, mean + std,
+        #                             color=f'C{label_idx}', alpha=0.2)
+        # if plot_result:
+        #     plt.legend()
+        #     plt.savefig(os.path.join(save_path, "plot_result.pdf"))
+        #     plt.savefig(os.path.join(save_path, "plot_result_png.png"))
+        #     plt.clf()

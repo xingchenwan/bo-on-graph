@@ -28,9 +28,11 @@ supported_labels = [
     "local_search",
     "ei",
     "ei_ego_network_1",
+    "ei_ego_network_1_old",
     "dfs",
     "bfs",
     "ei_ego_network_2",
+    "ei_ego_network_2_no_ard",
 ]
 
 
@@ -306,7 +308,6 @@ def run_one_replication(
                     candidates = candidates.reshape(-1, 1).to(X)
                     X_ = torch.zeros(0, X_.shape[1]).to(X_)
                     Y_ = torch.zeros(0, 1).to(Y_)
-
             new_y = base_function(candidates)
             X = torch.cat([X, candidates], dim=0)
             Y = torch.cat([Y, new_y], dim=0)
@@ -343,6 +344,36 @@ def run_one_replication(
                         covar_type="polynomial",
                         covar_kwargs = {"order": order,}, ## No order means context graph size
                         ard=True,
+                        use_fixed_noise=False,
+                        use_saas_map=False,
+                        fit_model=True,
+                        cached_eigenbasis=cached_eigenbasis,
+                        use_cached_eigenbasis=use_cached_eigenbasis,
+                        optim_kwargs=model_optim_kwargs,
+                    )
+                elif label == "ei_ego_network_1_old":
+                    model, mll, cached_eigenbasis = initialize_model(
+                        train_X=X_mapped,
+                        train_Y=Y_,
+                        context_graph=context_graph,
+                        covar_type="polynomial_old",
+                        covar_kwargs = {"order": order,}, ## No order means context graph size
+                        ard=True,
+                        use_fixed_noise=False,
+                        use_saas_map=False,
+                        fit_model=True,
+                        cached_eigenbasis=cached_eigenbasis,
+                        use_cached_eigenbasis=use_cached_eigenbasis,
+                        optim_kwargs=model_optim_kwargs,
+                    )
+                elif label == "ei_ego_network_2_no_ard":
+                    model, mll, cached_eigenbasis = initialize_model(
+                        train_X=X_mapped,
+                        train_Y=Y_,
+                        context_graph=context_graph,
+                        covar_type="diffusion",
+                        covar_kwargs = {"order": None,}, ## Change to order size context graph
+                        ard=False,
                         use_fixed_noise=False,
                         use_saas_map=False,
                         fit_model=True,
@@ -397,7 +428,6 @@ def run_one_replication(
                 # the candidates are in terms of the local graph -- map them back to the global graph
                 candidates = inverse_index_remapper(
                     raw_candidates).to(X).reshape(-1, 1)
-
         if animation and animation_interval > 0 and (X.shape[0] + 1) % animation_interval == 0:
             plot_animation.add_candidate(candidates, )
             plot_animation.make_plot(n_iters=X.shape[0] + candidates.shape[0])

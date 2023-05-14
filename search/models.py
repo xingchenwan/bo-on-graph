@@ -12,7 +12,7 @@ from gpytorch.constraints import GreaterThan, Interval
 from gpytorch.priors import GammaPrior
 from gpytorch.mlls import SumMarginalLogLikelihood, ExactMarginalLogLikelihood
 
-from .kernels import DiffusionGraphKernel, PolynomialKernel, PolynomialKernelNew
+from .kernels import DiffusionGraphKernel, PolynomialKernel, PolynomialKernelOld
 from .utils import eigendecompose_laplacian, local_search, fit_gpytorch_model, filter_invalid, gen_k_fold_cv_folds
 from botorch.acquisition import (ExpectedImprovement,
                                  NoisyExpectedImprovement,
@@ -132,19 +132,19 @@ def initialize_model(
         base_model_class = FixedNoiseGP if (
             use_fixed_noise and not torch.isnan(train_Yvar).any()) else SingleTaskGP
         covar_kwargs = covar_kwargs or {}
-        if covar_type in ["polynomial", "diffusion", "polynomial_new"]:
+        if covar_type in ["polynomial", "diffusion", "polynomial_old"]:
             if covar_type == "polynomial":
                 base_covar_class = PolynomialKernel
             elif covar_type == "diffusion":
                 base_covar_class = DiffusionGraphKernel
             else:
-                base_covar_class = PolynomialKernelNew
+                base_covar_class = PolynomialKernelOld
             order = covar_kwargs.get("order", None)
             # when order is not explicitly specified,
             if covar_type == "diffusion":
                 order = min(
                     order, train_X.shape[-2]) if order else len(context_graph)
-            elif covar_type in ["polynomial", "polynomial_new"]:
+            elif covar_type in ["polynomial", "polynomial_old"]:
                 if order == None:
                     order = min(5, nx.radius(context_graph))
                 
@@ -201,17 +201,16 @@ def initialize_model(
             mll = ExactMarginalLogLikelihood(
                 model.likelihood, model).to(device=train_X.device)
         if fit_model:
-            if covar_type in ["polynomial", "diffusion"]:
-                optim_options = dict(lr=0.1, train_iters=100)
-                optim_options.update(optim_kwargs or {})
-                with gpytorch.settings.debug(False):
-                    fit_gpytorch_model(mll, model, train_X,
-                                       train_Y, **optim_options)
-            else:
-                optim_options = dict(lr=0.1, mu_0=0.1, train_iters=100)
-                optim_options.update(optim_kwargs or {})
-                fit_gpytorch_model_with_constraints(
-                    mll, model, train_X, train_Y, **optim_options)
+            optim_options = dict(lr=0.1, train_iters=100)
+            optim_options.update(optim_kwargs or {})
+            with gpytorch.settings.debug(False):
+                fit_gpytorch_model(mll, model, train_X,
+                                    train_Y, **optim_options)
+            # else:
+            #     optim_options = dict(lr=0.1, mu_0=0.1, train_iters=100)
+            #     optim_options.update(optim_kwargs or {})
+            #     fit_gpytorch_model_with_constraints(
+            #         mll, model, train_X, train_Y, **optim_options)
 
     return model, mll, cached_eigenbasis
 

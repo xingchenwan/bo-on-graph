@@ -7,9 +7,24 @@ import torch
 import pandas as pd
 from copy import deepcopy
 matplotlib.rcParams.update({'font.size': 15})
-
-d_color = {"ei_ego_network_1":"#1f77b4", "ei_ego_network_2":"#8c564b", "random":"#ff7f0e", "local_search":"#2ca02c", "dfs": "#d62728", "bfs": "#9467bd"}
-d_label = {"ei_ego_network_1":"BayesOptG_Poly", "ei_ego_network_2":"BayesOptG_Diff", "random":"Random", "local_search":"Local search", "dfs": "Dfs", "bfs": "Bfs"}
+supported_labels = [
+    "random",
+    "local_search",
+    "ei",
+    "ei_ego_network_1",
+    "ei_ego_network_1_old",
+    "dfs",
+    "bfs",
+    "ei_ego_network_2",
+    "ei_ego_network_2_no_ard",
+]
+# cycler('color', ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']))
+d_color = {"ei_ego_network_1":"#1f77b4", "ei_ego_network_2":"#8c564b", "random":"#ff7f0e",
+           "local_search":"#2ca02c", "dfs": "#d62728", "bfs": "#9467bd", "ei_ego_network_1_old":"#e377c2",
+           "ei_ego_network_2_no_ard":"#7f7f7f"}
+d_label = {"ei_ego_network_1":"BO_Poly", "ei_ego_network_1_old":"BO_SumInverse",
+           "ei_ego_network_2":"BO_Diff_ARD", "ei_ego_network_2_no_ard":"BO_Diff", 
+           "random":"Random", "local_search":"Local search", "dfs": "Dfs", "bfs": "Bfs"}
 
 def plot_result(path: str, label: str, plot_kwargs: dict = None, median=False, cumulative=False, regret=True):
     plot_kwargs = deepcopy(plot_kwargs) or {}
@@ -28,6 +43,7 @@ def plot_result(path: str, label: str, plot_kwargs: dict = None, median=False, c
             y = data["Y"].numpy().flatten()
         data_over_seeds.append(y)
     n_data_per_trial = np.array([len(d) for d in data_over_seeds])
+    print(path)
     max_len = max(n_data_per_trial)
     if len(np.unique(n_data_per_trial)) > 1:
         # pad as appropriate
