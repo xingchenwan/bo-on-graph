@@ -27,6 +27,9 @@ def create_path(save_path, problem_name, problem_kwargs):
             s = "_".join([problem_kwargs["random_graph_type"], problem_kwargs["feature_name"], f'm-{problem_kwargs["m"]}', f'ninit-{problem_kwargs["n_init"]}', f'n-{problem_kwargs["n"]}'])
         if problem_kwargs["random_graph_type"] == "ws":
             s = "_".join([problem_kwargs["random_graph_type"], problem_kwargs["feature_name"], f'k-{problem_kwargs["k"]}', f'p-{problem_kwargs["p"]}', f'ninit-{problem_kwargs["n_init"]}', f'n-{problem_kwargs["n"]}'])
+        if problem_kwargs["random_graph_type"] == "real_enron":
+            s = "_".join([problem_kwargs["random_graph_type"], problem_kwargs["feature_name"]])
+        
     elif problem_name == "test_function":
         s = "_".join([problem_kwargs["test_function"], f'noise-{problem_kwargs["noise"]}', f'n-{problem_kwargs["n"]}'])
     elif problem_name == "team_opt":

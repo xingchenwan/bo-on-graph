@@ -10,6 +10,7 @@ import ndlib.models.ModelConfig as mc
 from math import sqrt
 from problems.hasse import generate_hasse, generate_jaccard
 import future.utils
+import pickle
 
 def get_synthetic_problem(
         label: str,
@@ -20,7 +21,7 @@ def get_synthetic_problem(
     problem_kwargs = problem_kwargs or {}
     n = problem_kwargs.get("n", 5000)
     random_graph_type = problem_kwargs.get("random_graph_type", "ba")
-    assert random_graph_type in ["ba", "ws", "grid", "seed", "sbm", "set", "jaccard", "real"]
+    assert random_graph_type in ["ba", "ws", "grid", "seed", "sbm", "set", "jaccard", "real", "real_enron"]
     if random_graph_type == "ba":
         m = problem_kwargs.get("m", 1)
         g = nx.generators.random_graphs.barabasi_albert_graph(
@@ -56,10 +57,11 @@ def get_synthetic_problem(
         for index, node in enumerate(sorted(list(g.nodes))):
             dict_relabel[node] = index
         g = nx.relabel_nodes(g, dict_relabel)
+    elif random_graph_type == "real_enron":
+        g = pickle.load(open('./enron_email_graph.pickle', 'rb'))
     else:
         raise ValueError(
             f"Unknown random_graph_type = {random_graph_type}")
-
     if label in ["centrality", "small_ba_betweenness"]:  # alias for backward compatibilitys
         feature_name = problem_kwargs.get(
             "feature_name", "eigenvector_centrality")
@@ -69,7 +71,6 @@ def get_synthetic_problem(
         def obj_func(idx): return ground_truth[idx]
         return SyntheticProblem(g, obj_func, problem_size=len(g.nodes), **problem_kwargs)
     elif label == "diffusion":
-
         model = ep.SIRModel(g, seed=seed)
         config = mc.Configuration()
         beta = problem_kwargs.get("beta", 1.)
@@ -78,9 +79,7 @@ def get_synthetic_problem(
         config.add_model_parameter('beta', beta)
         config.add_model_parameter('gamma', gamma)
         config.add_model_parameter("fraction_infected", fraction_infected)
-
         model.set_initial_status(config)
-
         ground_truth = compute_synthetic_node_features(
             g, feature_name="diffusion", model=model, **problem_kwargs)
 
