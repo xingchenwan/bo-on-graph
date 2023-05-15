@@ -14,11 +14,11 @@ def create_path(save_path, problem_name, problem_kwargs):
     if problem_name == "diffusion":
         if problem_kwargs["random_graph_type"] == "ba":
             s = "_".join([problem_kwargs["random_graph_type"], f'm-{problem_kwargs["m"]}', f'beta-{problem_kwargs["beta"]}', f'gamma-{problem_kwargs["gamma"]}',
-                f'n-{problem_kwargs["n"]}', f'epsilon-{problem_kwargs["epsilon"]}', f'gamma-{problem_kwargs["gamma"]}', f'iter-{problem_kwargs["iteration_diffusion"]}'
+                f'n-{problem_kwargs["n"]}', f'epsilon-{problem_kwargs["epsilon"]}', f'fracinfect-{problem_kwargs["fraction_infected"]}', f'iter-{problem_kwargs["iteration_diffusion"]}'
                 ])
         elif problem_kwargs["random_graph_type"] == "ws":
             s = "_".join([problem_kwargs["random_graph_type"], f'k-{problem_kwargs["k"]}', f'p-{problem_kwargs["p"]}', f'beta-{problem_kwargs["beta"]}', f'gamma-{problem_kwargs["gamma"]}',
-                f'n-{problem_kwargs["n"]}', f'epsilon-{problem_kwargs["epsilon"]}', f'gamma-{problem_kwargs["gamma"]}', f'iter-{problem_kwargs["iteration_diffusion"]}'
+                f'n-{problem_kwargs["n"]}', f'epsilon-{problem_kwargs["epsilon"]}', f'fracinfect-{problem_kwargs["fraction_infected"]}', f'iter-{problem_kwargs["iteration_diffusion"]}'
                 ])
     elif problem_name == "diffusion_real":
         s = "_".join([f'beta-{problem_kwargs["beta"]}', f'gamma-{problem_kwargs["gamma"]}'])
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     plot_result = getattr(config, "plot_result", True)
     animate = getattr(config, "animate", False)
     all_data_over_labels = {l: [] for l in labels}
-    seed=0
+    seed=10
 
     ### Make lists for multiple experiments
     list_keys, list_values = [], []
@@ -89,22 +89,26 @@ if __name__ == "__main__":
             for label_idx, label in enumerate(labels):
                 all_data = all_data_over_labels[label]
                 for i in range(n_exp):
-                    run_one_replication(
-                        label=label,
-                        seed=seed + i,
-                        problem_name=problem_name,
-                        save_path=save_path,
-                        batch_size=getattr(bo_kwargs, "batch_size", 1),
-                        n_initial_points=getattr(bo_kwargs, "n_init", 10),
-                        iterations=getattr(bo_kwargs, "max_iters", 50),
-                        max_radius=getattr(bo_kwargs, "max_radius", 10),
-                        context_graph_nnode_init=getattr(
-                            bo_kwargs, "context_graph_nnode_init", 100),
-                        animation=animate,
-                        trust_region_kwargs=getattr(
-                            bo_kwargs, "tr_settings", None),
-                        problem_kwargs=problem_kwargs,
-                    )
+                    try:
+                        run_one_replication(
+                                label=label,
+                                seed=seed + i,
+                                problem_name=problem_name,
+                                save_path=save_path,
+                                batch_size=getattr(bo_kwargs, "batch_size", 1),
+                                n_initial_points=getattr(bo_kwargs, "n_init", 10),
+                                iterations=getattr(bo_kwargs, "max_iters", 50),
+                                max_radius=getattr(bo_kwargs, "max_radius", 10),
+                                context_graph_nnode_init=getattr(
+                                    bo_kwargs, "context_graph_nnode_init", 100),
+                                animation=animate,
+                                trust_region_kwargs=getattr(
+                                    bo_kwargs, "tr_settings", None),
+                                problem_kwargs=problem_kwargs,
+                            )
+                    except:
+                        print("Configuration with label " + label + "failed, continue...")
+                        continue
 
             # for label_idx, label in enumerate(labels):
             #     all_data = all_data_over_labels[label]
