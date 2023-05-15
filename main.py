@@ -89,6 +89,7 @@ if __name__ == "__main__":
             else:
                 "If folder already exists then perform optimization depending on OVERWRITE"
                 if OVERWRITE == False:
+                    print(save_path + "found without overwriting, next config...")
                     continue
 
             for label_idx, label in enumerate(labels):
