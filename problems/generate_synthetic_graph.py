@@ -166,6 +166,8 @@ def compute_synthetic_node_features(
     elif feature_name == "eigenvector_centrality":
         feature = nx.eigenvector_centrality(
             input_graph, max_iter=1000, **kwargs)
+    elif feature_name == "degree_centrality":
+        feature = nx.degree_centrality(input_graph, **kwargs)
     elif feature_name == "closeness":
         feature = nx.closeness_centrality(input_graph)
     elif feature_name == "diffusion":

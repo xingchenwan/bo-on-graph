@@ -9,7 +9,7 @@ import utils.config_utils as config_utils
 import yaml
 from itertools import product
 
-def create_path(save_path, problem_name, problem_kwargs):
+def create_path(save_path, problem_name, problem_kwargs, bo_kwargs):
     
     if problem_name == "diffusion":
         if problem_kwargs["random_graph_type"] == "ba":
@@ -28,7 +28,7 @@ def create_path(save_path, problem_name, problem_kwargs):
         if problem_kwargs["random_graph_type"] == "ws":
             s = "_".join([problem_kwargs["random_graph_type"], problem_kwargs["feature_name"], f'k-{problem_kwargs["k"]}', f'p-{problem_kwargs["p"]}', f'ninit-{problem_kwargs["n_init"]}', f'n-{problem_kwargs["n"]}'])
         if problem_kwargs["random_graph_type"] == "real_enron":
-            s = "_".join([problem_kwargs["random_graph_type"], problem_kwargs["feature_name"]])
+            s = "_".join([problem_kwargs["random_graph_type"], problem_kwargs["feature_name"], f'contextnodes-{bo_kwargs["context_graph_nnode_init"]}'])
         
     elif problem_name == "test_function":
         s = "_".join([problem_kwargs["test_function"], f'noise-{problem_kwargs["noise"]}', f'n-{problem_kwargs["n"]}'])
@@ -42,7 +42,7 @@ def create_path(save_path, problem_name, problem_kwargs):
 
 ## TODO Manage option for gpu
 if __name__ == "__main__":
-    OVERWRITE = False
+    OVERWRITE = True
     # parse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str, default='centrality')
@@ -88,7 +88,7 @@ if __name__ == "__main__":
                     bo_kwargs[key] = el
 
             #### Build new save dir ba_m-3_beta-0.01_gamma-0.005_n-5000_epsilon-5e-4_iter-100_abs
-            save_path = create_path(save_dir, problem_name, problem_kwargs)
+            save_path = create_path(save_dir, problem_name, problem_kwargs, bo_kwargs)
             if not os.path.exists(save_path):
                 os.makedirs(save_path)
                 print("Processing", save_path, "...")
@@ -101,7 +101,6 @@ if __name__ == "__main__":
             for label_idx, label in enumerate(labels):
                 all_data = all_data_over_labels[label]
                 for i in range(n_exp):
-
                     try:
                         run_one_replication(
                                 label=label,
@@ -119,8 +118,8 @@ if __name__ == "__main__":
                                     bo_kwargs, "tr_settings", None),
                                 problem_kwargs=problem_kwargs,
                             )
-                    except:
-                        print("Configuration with label " + label + "failed, continue...")
+                    except Exception as e:
+                        print("Configuration with label " + label + "failed, with error " + str(e) + "continue...")
                         continue
 
             # for label_idx, label in enumerate(labels):
@@ -155,26 +154,30 @@ if __name__ == "__main__":
 
 
     else:
-        save_path = create_path(save_dir, problem_name, problem_kwargs)
+        save_path = create_path(save_dir, problem_name, problem_kwargs, bo_kwargs)
         for label_idx, label in enumerate(labels):
             all_data = all_data_over_labels[label]
             for i in range(n_exp):
-                run_one_replication(
-                    label=label,
-                    seed=seed + i,
-                    problem_name=problem_name,
-                    save_path=save_path,
-                    batch_size=getattr(bo_kwargs, "batch_size", 1),
-                    n_initial_points=getattr(bo_kwargs, "n_init", 10),
-                    iterations=getattr(bo_kwargs, "max_iters", 50),
-                    max_radius=getattr(bo_kwargs, "max_radius", 10),
-                    context_graph_nnode_init=getattr(
-                        bo_kwargs, "context_graph_nnode_init", 100),
-                    animation=animate,
-                    trust_region_kwargs=getattr(
-                        bo_kwargs, "tr_settings", None),
-                    problem_kwargs=problem_kwargs,
-                )
+                try:
+                    run_one_replication(
+                        label=label,
+                        seed=seed + i,
+                        problem_name=problem_name,
+                        save_path=save_path,
+                        batch_size=getattr(bo_kwargs, "batch_size", 1),
+                        n_initial_points=getattr(bo_kwargs, "n_init", 10),
+                        iterations=getattr(bo_kwargs, "max_iters", 50),
+                        max_radius=getattr(bo_kwargs, "max_radius", 10),
+                        context_graph_nnode_init=getattr(
+                            bo_kwargs, "context_graph_nnode_init", 100),
+                        animation=animate,
+                        trust_region_kwargs=getattr(
+                            bo_kwargs, "tr_settings", None),
+                        problem_kwargs=problem_kwargs,
+                    )
+                except Exception as e:
+                    print("Configuration with label " + label + "failed, with error " + str(e) + "continue...")
+                    continue
     
         # for label_idx, label in enumerate(labels):
         #     all_data = all_data_over_labels[label]
