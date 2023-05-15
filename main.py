@@ -86,6 +86,7 @@ if __name__ == "__main__":
             save_path = create_path(save_dir, problem_name, problem_kwargs)
             if not os.path.exists(save_path):
                 os.makedirs(save_path)
+                print("Processing", save_path, "...")
             else:
                 "If folder already exists then perform optimization depending on OVERWRITE"
                 if OVERWRITE == False:
