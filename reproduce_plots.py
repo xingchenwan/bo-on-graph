@@ -87,21 +87,24 @@ if __name__ == "__main__":
             exp_dir = os.path.join(task_dir, experiment)
             algorithm_name = [name for name in os.listdir(exp_dir) if os.path.isdir(os.path.join(exp_dir, name))]
             min_max_len = np.inf
-            for algorithm in algorithm_name:
-                alg_dir = os.path.join(exp_dir, algorithm)
-                ## Here are in directory with signal png and pt
-                y, max_len = plot_result(alg_dir, label=algorithm, median=False, cumulative=True)
-                min_max_len = min(min_max_len, max_len)
-            print(min_max_len)
-            plt.legend()
-            plt.xlabel("#Iters")
-            plt.ylabel("Objective")
-            plt.xlim([0, min_max_len])
-            #plt.yscale("log")
-            plt.savefig(os.path.join(exp_dir, "plot_result_regretpng.png"), bbox_inches='tight')
-            plt.savefig(os.path.join(exp_dir, "plot_result_regretpdf.pdf"), bbox_inches='tight')
-            plt.clf()
-        
+            try:
+                for algorithm in algorithm_name:
+                    alg_dir = os.path.join(exp_dir, algorithm)
+                    ## Here are in directory with signal png and pt
+                    y, max_len = plot_result(alg_dir, label=algorithm, median=False, cumulative=True)
+                    min_max_len = min(min_max_len, max_len)
+                print(min_max_len)
+                plt.legend()
+                plt.xlabel("#Iters")
+                plt.ylabel("Objective")
+                plt.xlim([0, min_max_len])
+                #plt.yscale("log")
+                plt.savefig(os.path.join(exp_dir, "plot_result_regretpng.png"), bbox_inches='tight')
+                plt.savefig(os.path.join(exp_dir, "plot_result_regretpdf.pdf"), bbox_inches='tight')
+                plt.clf()
+            except:
+                continue
+
     logs_dir = './logs'
     task_list = [name for name in os.listdir(logs_dir) if os.path.isdir(os.path.join(logs_dir, name))]
     for task in task_list:
@@ -111,16 +114,19 @@ if __name__ == "__main__":
             exp_dir = os.path.join(task_dir, experiment)
             algorithm_name = [name for name in os.listdir(exp_dir) if os.path.isdir(os.path.join(exp_dir, name))]
             min_max_len = np.inf
-            for algorithm in algorithm_name:
-                alg_dir = os.path.join(exp_dir, algorithm)
-                ## Here are in directory with signal png and pt
-                y, max_len = plot_result(alg_dir, label=algorithm, median=False, cumulative=True)
-                min_max_len = min(min_max_len, max_len)
-            plt.legend()
-            plt.xlabel("#Iters")
-            plt.ylabel("Objective")
-            plt.xlim([0, min_max_len])
-            plt.yscale("log")
-            plt.savefig(os.path.join(exp_dir, "plot_result_regretlogpng.png"), bbox_inches='tight')
-            plt.savefig(os.path.join(exp_dir, "plot_result_regretlogpdf.pdf"), bbox_inches='tight')
-            plt.clf()
+            try:
+                for algorithm in algorithm_name:
+                    alg_dir = os.path.join(exp_dir, algorithm)
+                    ## Here are in directory with signal png and pt
+                    y, max_len = plot_result(alg_dir, label=algorithm, median=False, cumulative=True)
+                    min_max_len = min(min_max_len, max_len)
+                plt.legend()
+                plt.xlabel("#Iters")
+                plt.ylabel("Objective")
+                plt.xlim([0, min_max_len])
+                plt.yscale("log")
+                plt.savefig(os.path.join(exp_dir, "plot_result_regretlogpng.png"), bbox_inches='tight')
+                plt.savefig(os.path.join(exp_dir, "plot_result_regretlogpdf.pdf"), bbox_inches='tight')
+                plt.clf()
+            except:
+                continue
