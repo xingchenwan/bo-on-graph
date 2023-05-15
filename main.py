@@ -30,8 +30,6 @@ def create_path(save_path, problem_name, problem_kwargs):
     elif problem_name == "test_function":
         s = "_".join([problem_kwargs["test_function"], f'noise-{problem_kwargs["noise"]}', f'n-{problem_kwargs["n"]}'])
     save_path = os.path.join(save_dir, s)
-    if not os.path.exists(save_path):
-        os.makedirs(save_path)
     return save_path
 
 
@@ -39,7 +37,7 @@ def create_path(save_path, problem_name, problem_kwargs):
 
 ## TODO Manage option for gpu
 if __name__ == "__main__":
-
+    OVERWRITE = False
     # parse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str, default='centrality')
@@ -86,9 +84,17 @@ if __name__ == "__main__":
 
             #### Build new save dir ba_m-3_beta-0.01_gamma-0.005_n-5000_epsilon-5e-4_iter-100_abs
             save_path = create_path(save_dir, problem_name, problem_kwargs)
+            if not os.path.exists(save_path):
+                os.makedirs(save_path)
+            else:
+                "If folder already exists then perform optimization depending on OVERWRITE"
+                if OVERWRITE == False:
+                    continue
+
             for label_idx, label in enumerate(labels):
                 all_data = all_data_over_labels[label]
                 for i in range(n_exp):
+
                     try:
                         run_one_replication(
                                 label=label,
