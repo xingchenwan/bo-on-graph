@@ -65,7 +65,7 @@ if __name__ == "__main__":
     plot_result = getattr(config, "plot_result", True)
     animate = getattr(config, "animate", False)
     all_data_over_labels = {l: [] for l in labels}
-    seed=10
+    seed=0
 
     ### Make lists for multiple experiments
     list_keys, list_values = [], []
