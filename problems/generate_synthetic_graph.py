@@ -21,7 +21,7 @@ def get_synthetic_problem(
     problem_kwargs = problem_kwargs or {}
     n = problem_kwargs.get("n", 5000)
     random_graph_type = problem_kwargs.get("random_graph_type", "ba")
-    assert random_graph_type in ["ba", "ws", "grid", "seed", "sbm", "set", "jaccard", "real", "real_enron"]
+    assert random_graph_type in ["ba", "ws", "grid", "seed", "sbm", "set", "jaccard", "real", "real_enron", "real_fb", "real_twitch"]
     if random_graph_type == "ba":
         m = problem_kwargs.get("m", 1)
         g = nx.generators.random_graphs.barabasi_albert_graph(
@@ -61,6 +61,8 @@ def get_synthetic_problem(
         g = pickle.load(open('./enron_email_graph.pickle', 'rb'))
     elif random_graph_type == "real_twitch":
         g = pickle.load(open('./twitch.pickle', 'rb'))
+    elif random_graph_type == "real_fb":
+        g = pickle.load(open('./facebook.pickle', 'rb'))
     else:
         raise ValueError(
             f"Unknown random_graph_type = {random_graph_type}")
