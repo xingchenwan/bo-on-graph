@@ -21,7 +21,7 @@ def create_path(save_path, problem_name, problem_kwargs, bo_kwargs):
                 f'n-{problem_kwargs["n"]}', f'epsilon-{problem_kwargs["epsilon"]}', f'fracinfect-{problem_kwargs["fraction_infected"]}', f'iter-{problem_kwargs["iteration_diffusion"]}'
                 ])
     elif problem_name == "diffusion_real":
-        s = "_".join([f'beta-{problem_kwargs["beta"]}', f'gamma-{problem_kwargs["gamma"]}'])
+        s = "_".join([f'beta-{problem_kwargs["beta"]}', f'gamma-{problem_kwargs["gamma"]}', f'fracinfect-{problem_kwargs["fraction_infected"]}'])
     elif problem_name == "centrality":
         if problem_kwargs["random_graph_type"] == "ba":
             s = "_".join([problem_kwargs["random_graph_type"], problem_kwargs["feature_name"], f'm-{problem_kwargs["m"]}', f'ninit-{problem_kwargs["n_init"]}', f'n-{problem_kwargs["n"]}'])
