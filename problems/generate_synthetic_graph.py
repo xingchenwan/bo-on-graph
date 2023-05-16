@@ -59,6 +59,8 @@ def get_synthetic_problem(
         g = nx.relabel_nodes(g, dict_relabel)
     elif random_graph_type == "real_enron":
         g = pickle.load(open('./enron_email_graph.pickle', 'rb'))
+    elif random_graph_type == "real_twitch":
+        g = pickle.load(open('./twitch.pickle', 'rb'))
     else:
         raise ValueError(
             f"Unknown random_graph_type = {random_graph_type}")
