@@ -110,7 +110,7 @@ if __name__ == "__main__":
                     problem_kwargs[key] = el
                 elif type_param == "bo":
                     bo_kwargs[key] = el
-                elif type_param == "bo":
+                elif type_param == "tr":
                     tr_kwargs[key] = el
                 elif type_param == "label":
                     label = el
