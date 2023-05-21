@@ -9,7 +9,7 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/main_ablation.py",
-            "args": ["--config", "ablation"],
+            "args": ["--config", "ablation_test"],
             "console": "integratedTerminal",
             "justMyCode": true
         }

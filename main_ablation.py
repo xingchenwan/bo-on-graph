@@ -39,9 +39,10 @@ def create_path(save_path, label, problem_name, ablation_name, problem_kwargs, b
     elif problem_name == "team_opt":
         s = "_".join([problem_kwargs["random_graph_type"], f'n_skills-{problem_kwargs["n_skills"]}', f'alpha-{problem_kwargs["alpha"]}', f'n_individuals-{problem_kwargs["n_individuals"]}', f'threshold-{problem_kwargs["threshold"]}'])
     
-    str_bo = [key + "-" + f"{value}" for key, value in bo_kwargs.items() if key not in ["tr_settings", ablation_name]]
-    str_tr = [key + "-" + f"{value}" for key, value in tr_kwargs.items() if key != ablation_name]
-    
+    ##str_bo = [key + "-" + f"{value}" for key, value in bo_kwargs.items() if key not in ["tr_settings", ablation_name]]
+    ##str_tr = [key + "-" + f"{value}" for key, value in tr_kwargs.items() if key != ablation_name]
+    str_bo = [key + "-" + f"{value}" for key, value in bo_kwargs.items() if key not in ["tr_settings"]]
+    str_tr = [key + "-" + f"{value}" for key, value in tr_kwargs.items()]
     s = "_".join([label, problem_name, s] + str_bo + str_tr)
     save_path = os.path.join(save_dir, s)
     return save_path
@@ -91,15 +92,15 @@ if __name__ == "__main__":
             list_keys.append(tuple(["pb", key]))
             list_values.append(value)
     for key, value in bo_kwargs.items():
-        if key != ablation_name:
-            if type(value) == list:
-                list_keys.append(tuple(["bo", key]))
-                list_values.append(value)
+        #if key != ablation_name:
+        if type(value) == list:
+            list_keys.append(tuple(["bo", key]))
+            list_values.append(value)
     for key, value in tr_kwargs.items():
-        if key != ablation_name:
-            if type(value) == list:
-                list_keys.append(tuple(["tr", key]))
-                list_values.append(value)
+        #if key != ablation_name:
+        if type(value) == list:
+            list_keys.append(tuple(["tr", key]))
+            list_values.append(value)
     list_keys.append(tuple(["label", None]))
     list_values.append(labels)
     if len(list_values) > 0:
@@ -132,16 +133,16 @@ if __name__ == "__main__":
                 elif ablation_name in ["n_nodes_min", "trust_region_multiplier", "succ_tol", "fail_tol"]:
                     tr_kwargs[ablation_name] = param
                 bo_kwargs["tr_settings"] = tr_kwargs
-                save_dir = os.path.join(save_path, ablation_name + f"-{param}")
-                if not os.path.exists(save_dir):
-                    os.makedirs(save_dir)
+                #save_dir = os.path.join(save_path, ablation_name + f"-{param}")
+                #if not os.path.exists(save_dir):
+                #    os.makedirs(save_dir)
                 for i in range(n_exp):
                     try:
                         run_one_replication(
                                 label=label,
                                 seed=seed + i,
                                 problem_name=problem_name,
-                                save_path=save_dir,
+                                save_path=save_path,
                                 batch_size=getattr(bo_kwargs, "batch_size", 1),
                                 n_initial_points=getattr(bo_kwargs, "n_init", 10),
                                 iterations=getattr(bo_kwargs, "max_iters", 50),
