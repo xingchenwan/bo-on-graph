@@ -69,7 +69,7 @@ def plot_result(path: str, label: str, value, index_ablation, plot_kwargs: dict 
     return y, max_len
 
 ### TODO Change path adapted for ablation studies
-def create_path(save_path, label, problem_name, ablation_name, problem_kwargs, bo_kwargs, tr_kwargs):
+def create_path(save_path, label, problem_name, problem_kwargs, bo_kwargs, tr_kwargs):
     ### Desiderata:
     # - First name of kernel
     # - Second name of the task
@@ -138,13 +138,12 @@ if __name__ == "__main__":
     bo_kwargs = config["bo_settings"]
     tr_kwargs = bo_kwargs["tr_settings"]
     n_exp = getattr(config, "n_exp", 10)
-    plot_result = getattr(config, "plot_result", True)
     animate = getattr(config, "animate", False)
     all_data_over_labels = {l: [] for l in labels}
     seed=0
 
     ### Check path
-    save_dir_ablation = "./logs/ablation/ablation_name/" + args.config + "/"
+    save_dir_ablation = f"./logs/ablation/" + args.config + "/"
     if not os.path.exists(save_dir_ablation):
         os.makedirs(save_dir_ablation)
 
@@ -170,6 +169,7 @@ if __name__ == "__main__":
             list_values.append(value)
     if len(list_values) > 0:
         for label in labels:
+            min_max_len = np.inf
             for index_ablation, t in enumerate(product(*list_values)):
                 for i, el in enumerate(t):
                     type_param, key = list_keys[i]
@@ -180,7 +180,7 @@ if __name__ == "__main__":
                     elif type_param == "tr":
                         tr_kwargs[key] = el
 
-                save_path = create_path(save_dir, label, problem_name, ablation_name, problem_kwargs, bo_kwargs, tr_kwargs)
+                save_path = create_path(save_dir, label, problem_name, problem_kwargs, bo_kwargs, tr_kwargs)
                 
                 if not os.path.exists(save_path):
                     os.makedirs(save_path)
@@ -193,9 +193,11 @@ if __name__ == "__main__":
                 bo_kwargs["tr_settings"] = tr_kwargs
                 ### Here process plots from n_seeds and save it in the path save_dir_ablation_kernel
                 ## Assumption that only ablation parameter is under list form
-                y, max_len = plot_result(save_path, label, value=t[0], index_ablation=index_ablation, median=False, cumulative=True)
+                y, max_len = plot_result(save_path, key, value=t[0], index_ablation=index_ablation, median=False, cumulative=True)
                 min_max_len = min(min_max_len, max_len)
             save_dir_ablation_kernel = os.path.join(save_dir_ablation, label)
+            if not os.path.exists(save_dir_ablation_kernel):
+                os.makedirs(save_dir_ablation_kernel)
             plt.legend()
             plt.xlabel("#Iters")
             plt.ylabel("Objective")
