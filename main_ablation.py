@@ -126,37 +126,36 @@ if __name__ == "__main__":
                 if OVERWRITE == False:
                     print(save_path + "found without overwriting, next config...")
                     continue
-            
-            for param in list_ablation_parameter:
-                if ablation_name in ["max_radius", "context_graph_nnode_init"]:
-                    bo_kwargs[ablation_name] = param
-                elif ablation_name in ["n_nodes_min", "trust_region_multiplier", "succ_tol", "fail_tol"]:
-                    tr_kwargs[ablation_name] = param
-                bo_kwargs["tr_settings"] = tr_kwargs
-                #save_dir = os.path.join(save_path, ablation_name + f"-{param}")
-                #if not os.path.exists(save_dir):
-                #    os.makedirs(save_dir)
-                for i in range(n_exp):
-                    try:
-                        run_one_replication(
-                                label=label,
-                                seed=seed + i,
-                                problem_name=problem_name,
-                                save_path=save_path,
-                                batch_size=getattr(bo_kwargs, "batch_size", 1),
-                                n_initial_points=getattr(bo_kwargs, "n_init", 10),
-                                iterations=getattr(bo_kwargs, "max_iters", 50),
-                                max_radius=getattr(bo_kwargs, "max_radius", 10),
-                                context_graph_nnode_init=getattr(
-                                    bo_kwargs, "context_graph_nnode_init", 100),
-                                animation=animate,
-                                trust_region_kwargs=getattr(
-                                    bo_kwargs, "tr_settings", None),
-                                problem_kwargs=problem_kwargs,
-                            )
-                    except Exception as e:
-                        print("Configuration with label " + label + "failed, with error " + str(e) + "continue...")
-                        continue
+            bo_kwargs["tr_settings"] = tr_kwargs
+            # for param in list_ablation_parameter:
+            # if ablation_name in ["max_radius", "context_graph_nnode_init"]:
+            #     bo_kwargs[ablation_name] = param
+            # elif ablation_name in ["n_nodes_min", "trust_region_multiplier", "succ_tol", "fail_tol"]:
+            #     tr_kwargs[ablation_name] = param
+            #save_dir = os.path.join(save_path, ablation_name + f"-{param}")
+            #if not os.path.exists(save_dir):
+            #    os.makedirs(save_dir)
+            for i in range(n_exp):
+                try:
+                    run_one_replication(
+                            label=label,
+                            seed=seed + i,
+                            problem_name=problem_name,
+                            save_path=save_path,
+                            batch_size=getattr(bo_kwargs, "batch_size", 1),
+                            n_initial_points=getattr(bo_kwargs, "n_init", 10),
+                            iterations=getattr(bo_kwargs, "max_iters", 50),
+                            max_radius=getattr(bo_kwargs, "max_radius", 10),
+                            context_graph_nnode_init=getattr(
+                                bo_kwargs, "context_graph_nnode_init", 100),
+                            animation=animate,
+                            trust_region_kwargs=getattr(
+                                bo_kwargs, "tr_settings", None),
+                            problem_kwargs=problem_kwargs,
+                        )
+                except Exception as e:
+                    print("Configuration with label " + label + "failed, with error " + str(e) + "continue...")
+                    continue
 
     else:
         raise NotImplementedError
