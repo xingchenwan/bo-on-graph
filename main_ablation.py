@@ -151,6 +151,7 @@ if __name__ == "__main__":
                                 trust_region_kwargs=getattr(
                                     bo_kwargs, "tr_settings", None),
                                 problem_kwargs=problem_kwargs,
+                                order=getattr(bo_kwargs, "order", None),
                             )
                     except Exception as e:
                         print("Configuration with label " + label + "failed, with error " + str(e) + "continue...")
