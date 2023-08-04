@@ -21,10 +21,11 @@ supported_labels = [
 # cycler('color', ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']))
 d_color = {"ei_ego_network_1":"#1f77b4", "ei_ego_network_2":"#8c564b", "random":"#ff7f0e",
            "local_search":"#2ca02c", "dfs": "#d62728", "bfs": "#9467bd", "ei_ego_network_1_old":"#e377c2",
-           "ei_ego_network_2_no_ard":"#7f7f7f"}
+           "ei_ego_network_2_no_ard":"#7f7f7f", "ei_ego_network_matern":'#bcbd22'}
 d_label = {"ei_ego_network_1":"BO_Poly", "ei_ego_network_1_old":"BO_SumInverse",
            "ei_ego_network_2":"BO_Diff_ARD", "ei_ego_network_2_no_ard":"BO_Diff", 
-           "random":"Random", "local_search":"Local search", "dfs": "Dfs", "bfs": "Bfs"}
+           "random":"Random", "local_search":"Local search", "dfs": "Dfs", "bfs": "Bfs",
+           "ei_ego_network_matern":"BO_Matern"}
 
 def plot_result(path: str, label: str, plot_kwargs: dict = None, median=False, cumulative=False, regret=True):
     plot_kwargs = deepcopy(plot_kwargs) or {}

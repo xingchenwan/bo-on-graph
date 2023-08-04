@@ -173,6 +173,57 @@ class PolynomialKernelOld(DiffusionGraphKernel):
         if diag:
             res = torch.diagonal(res, dim1=-1, dim2=-2)
         return res
+    
+class MaternKernel(DiffusionGraphKernel):
+    has_lengthscale = True
+    def __init__(self,
+                 nu: Optional[float] = 2.5,
+                 context_graph: nx.Graph = None,
+                 eigenbasis: Optional[torch.Tensor] = None,
+                 eigenvalues: Optional[torch.Tensor] = None,
+                 precompute_eigendecompose: bool = True,
+                 normalized_laplacian: bool = True,
+                 order: int = None,
+                 **kwargs) -> None:
+        super(MaternKernel, self).__init__(context_graph,
+                                           eigenbasis,
+                                           eigenvalues,
+                                           precompute_eigendecompose,
+                                           normalized_laplacian,
+                                           order,
+                                           **kwargs)
+        self.nu = nu
+    
+    def get_dist(self):
+        dists = (self.eigenvalues + (2*self.nu)/(self.lengthscale**2))**(-self.nu)
+        return torch.diag(dists.squeeze(0))
+
+    def forward(self, x1, x2, diag=False, **params):
+        """
+        x1: torch.Tensor of shape (b1 x ... x bn x n x 1): each element is a vertice index.
+        x2: torch.Tensor of shape (b1 x ... x bn x m x 1): each element is a vertice index.
+        Output:
+            kernel matrix of dim (b1 x .... x bn x n x m)
+        Note that this kernel is not differentiable w.r.t. the inputs.
+        """
+        if self.eigenvalues is None or self.eigenbasis is None:
+            raise ValueError(
+                "Eigendecomposition of Laplacian is not performed!")
+        assert x1.shape[-1] == 1 and x2.shape[-1] == 1
+        x1_ = x1.long().squeeze(-1)
+        x2_ = x2.long().squeeze(-1)
+        # b1 x ...x bn x n x N
+        subvec1 = self.eigenbasis[x1_, ...]
+        # b1 x ...x bn x m x N
+        subvec2 = self.eigenbasis[x2_, ...]
+        dists = self.get_dist()     # N x N
+        self._dists = torch.diagonal(dists.clone(), 0)
+
+        tmp = torch.einsum("...ij,jj->...ij", subvec1, dists)
+        res = torch.einsum("...ij,...kj->...ik", tmp, subvec2)
+        if diag:
+            res = torch.diagonal(res, dim1=-1, dim2=-2)
+        return res
 
 
 if __name__ == "__main__":

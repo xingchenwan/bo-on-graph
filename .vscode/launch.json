@@ -8,8 +8,8 @@
             "name": "bo on graph",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/main_ablation.py",
-            "args": ["--config", "ablation_failtol"],
+            "program": "${workspaceFolder}/main.py",
+            "args": ["--config", "centrality_2"],
             "console": "integratedTerminal",
             "justMyCode": true
         }
