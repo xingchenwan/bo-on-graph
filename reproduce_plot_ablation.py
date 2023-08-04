@@ -57,8 +57,14 @@ def plot_result(path: str, label: str, value, index_ablation, plot_kwargs: dict 
         mean = -mean
         lb = -lb
         ub = -ub
-    #plt.plot(x, mean, ".-", label=label+": " + str(value), color=d_color[label], **plot_kwargs)
-    plt.plot(x, mean, ".-", label=label+": " + str(value), color=list_color[index_ablation], **plot_kwargs)
+
+    if label == "context_graph_nnode_init":
+        plt.plot(x, mean, ".-", label=r"$Q_0:$" + str(value), color=list_color[index_ablation], **plot_kwargs)
+    elif label == "fail_tol":
+        plt.plot(x, mean, ".-", label="fail_tol:" + str(value), color=list_color[index_ablation], **plot_kwargs)
+    elif label == "order":
+        plt.plot(x, mean, ".-", label="$\eta:$" + str(value), color=list_color[index_ablation], **plot_kwargs)
+    
     if "alpha" in plot_kwargs.keys():
         del plot_kwargs["alpha"]
     if "markevery" in plot_kwargs.keys():

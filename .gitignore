@@ -7,3 +7,5 @@
 /data
 *.pyc
 *.pt
+*.pdf
+*.png
