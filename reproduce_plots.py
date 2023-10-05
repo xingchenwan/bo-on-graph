@@ -17,6 +17,7 @@ supported_labels = [
     "bfs",
     "ei_ego_network_2",
     "ei_ego_network_2_no_ard",
+    "ei_ego_network_matern"
 ]
 # cycler('color', ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']))
 d_color = {"ei_ego_network_1":"#1f77b4", "ei_ego_network_2":"#8c564b", "random":"#ff7f0e",

@@ -273,6 +273,7 @@ def run_one_replication(
                     i + seed).choice(len(neighbors_of_best), batch_size, )).tolist()
                 candidates = neighbors_of_best[candidate_idx]
         elif label == "dfs" or label == "bfs":
+            visited = set(list(X_.numpy().flatten()))
             flag = 1
             for stack in list_stacks:
                 flag *= len(stack)
@@ -486,7 +487,7 @@ def run_one_replication(
                         n_hop_max=max_radius ###here should be updated to the trust region number of nodes
                     )
                     
-                    print(f"Here is the size of the local graph: {len(list(context_graph.nodes))}, when the initial number if {context_graph_nnode_init} and trust region is {trust_region_state.n_nodes}")
+                    #print(f"Here is the size of the local graph: {len(list(context_graph.nodes))}, when the initial number if {context_graph_nnode_init} and trust region is {trust_region_state.n_nodes}")
 
                     X_, Y_ = prune_baseline(X, Y, torch.tensor(
                         list(context_graph.nodes)).to(X))

@@ -9,7 +9,7 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/main.py",
-            "args": ["--config", "test_trust_region"],
+            "args": ["--config", "ba"],
             "console": "integratedTerminal",
             "justMyCode": true
         }

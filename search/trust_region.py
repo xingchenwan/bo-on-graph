@@ -41,7 +41,7 @@ def update_state(state: "TrustRegionState", Y_next: torch.Tensor,):
     elif state.failure_counter == state.fail_tol:  # Shrink trust region
 
         #state.restart_triggered = True ## Not supposed to restart here
-        state.n_nodes //= state.trust_region_multiplier
+        state.n_nodes = int(state.n_nodes // state.trust_region_multiplier)
         state.failure_counter = 0
 
     state.best_value = max(state.best_value, max(Y_next).item())
@@ -90,6 +90,7 @@ def restart(
         trust_region_state = TrustRegionState(
             dim=1,
             batch_size=batch_size,
+            n_nodes=init_context_graph_size,
             **default_options
         )
         return candidates, trust_region_state
