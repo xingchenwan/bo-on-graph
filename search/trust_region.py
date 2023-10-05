@@ -88,9 +88,7 @@ def restart(
     # initialize a new state
     if use_trust_region:
         current_failtol = default_options["fail_tol"]
-        print(f"Here we are, the judgment day :{current_failtol}")
         current_tr = default_options["trust_region_multiplier"]
-        print(f"Here we are, the judgment day :{current_tr}")
         trust_region_state = TrustRegionState(
             dim=1,
             n_nodes_max=init_context_graph_size,

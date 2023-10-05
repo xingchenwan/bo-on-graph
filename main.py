@@ -161,7 +161,23 @@ if __name__ == "__main__":
         for label_idx, label in enumerate(labels):
             all_data = all_data_over_labels[label]
             for i in range(n_exp):
-                try:
+                run_one_replication(
+                        label=label,
+                        seed=seed + i,
+                        problem_name=problem_name,
+                        save_path=save_path,
+                        batch_size=getattr(bo_kwargs, "batch_size", 1),
+                        n_initial_points=getattr(bo_kwargs, "n_init", 10),
+                        iterations=getattr(bo_kwargs, "max_iters", 50),
+                        max_radius=getattr(bo_kwargs, "max_radius", 10),
+                        context_graph_nnode_init=getattr(
+                            bo_kwargs, "context_graph_nnode_init", 100),
+                        animation=animate,
+                        trust_region_kwargs=getattr(
+                            bo_kwargs, "tr_settings", None),
+                        problem_kwargs=problem_kwargs,
+                    )
+"""                 try:
                     run_one_replication(
                         label=label,
                         seed=seed + i,
@@ -180,7 +196,7 @@ if __name__ == "__main__":
                     )
                 except Exception as e:
                     print("Configuration with label " + label + "failed, with error " + str(e) + "continue...")
-                    continue
+                    continue """
     
         # for label_idx, label in enumerate(labels):
         #     all_data = all_data_over_labels[label]

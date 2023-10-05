@@ -8,10 +8,27 @@
             "name": "bo on graph",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/main_ablation.py",
-            "args": ["--config", "ablation_failtol"],
+            "program": "${workspaceFolder}/main.py",
+            "args": ["--config", "centrality_2"],
             "console": "integratedTerminal",
             "justMyCode": true
         }
     ]
 }
+
+/* {
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "bo on graph",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/reproduce_plots.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }
+    ]
+} */

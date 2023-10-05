@@ -33,6 +33,7 @@ supported_labels = [
     "bfs",
     "ei_ego_network_2",
     "ei_ego_network_2_no_ard",
+    "ei_ego_network_matern",
 ]
 
 
@@ -389,6 +390,22 @@ def run_one_replication(
                         covar_type="diffusion",
                         covar_kwargs = {"order": len(context_graph.nodes),}, ## Change to order size context graph
                         ard=True,
+                        use_fixed_noise=False,
+                        use_saas_map=False,
+                        fit_model=True,
+                        cached_eigenbasis=cached_eigenbasis,
+                        use_cached_eigenbasis=use_cached_eigenbasis,
+                        optim_kwargs=model_optim_kwargs,
+                    )
+
+                elif label == "ei_ego_network_matern":
+                    model, mll, cached_eigenbasis = initialize_model(
+                        train_X=X_mapped,
+                        train_Y=Y_,
+                        context_graph=context_graph,
+                        covar_type="matern",
+                        covar_kwargs = None, ## Change to order size context graph
+                        ard=False,
                         use_fixed_noise=False,
                         use_saas_map=False,
                         fit_model=True,

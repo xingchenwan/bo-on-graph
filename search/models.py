@@ -12,7 +12,7 @@ from gpytorch.constraints import GreaterThan, Interval
 from gpytorch.priors import GammaPrior
 from gpytorch.mlls import SumMarginalLogLikelihood, ExactMarginalLogLikelihood
 
-from .kernels import DiffusionGraphKernel, PolynomialKernel, PolynomialKernelOld
+from .kernels import DiffusionGraphKernel, PolynomialKernel, PolynomialKernelOld, MaternKernel
 from .utils import eigendecompose_laplacian, local_search, fit_gpytorch_model, filter_invalid, gen_k_fold_cv_folds
 from botorch.acquisition import (ExpectedImprovement,
                                  NoisyExpectedImprovement,
@@ -132,11 +132,13 @@ def initialize_model(
         base_model_class = FixedNoiseGP if (
             use_fixed_noise and not torch.isnan(train_Yvar).any()) else SingleTaskGP
         covar_kwargs = covar_kwargs or {}
-        if covar_type in ["polynomial", "diffusion", "polynomial_old"]:
+        if covar_type in ["polynomial", "diffusion", "polynomial_old", "matern"]:
             if covar_type == "polynomial":
                 base_covar_class = PolynomialKernel
             elif covar_type == "diffusion":
                 base_covar_class = DiffusionGraphKernel
+            elif covar_type == "matern":
+                base_covar_class = MaternKernel
             else:
                 base_covar_class = PolynomialKernelOld
             order = covar_kwargs.get("order", None)
