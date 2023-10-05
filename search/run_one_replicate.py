@@ -184,10 +184,11 @@ def run_one_replication(
     if "ego_network" in label:
         # context_graph = nx.ego_graph(
         #     base_function.context_graph, best_loc.item(), radius=ego_radius)
+        
         context_graph = get_context_graph(
             base_function.context_graph,
             best_loc.item(),
-            nnodes=context_graph_nnode_init,
+            nnodes=context_graph_nnode_init, ###here should be updated to the trust region number of nodes
         )
         X_, Y_ = prune_baseline(X_, Y_, torch.tensor(
             list(context_graph.nodes),).to(X_))
@@ -477,11 +478,16 @@ def run_one_replication(
                 best_idx = obj.argmax().cpu()
                 best_loc = X_[best_idx]
                 if "ego_network" in label:
+
                     context_graph = get_context_graph(
                         base_function.context_graph,
                         best_loc.item(),
-                        nnodes=context_graph_nnode_init,
+                        nnodes=trust_region_state.n_nodes,
+                        n_hop_max=max_radius ###here should be updated to the trust region number of nodes
                     )
+                    
+                    print(f"Here is the size of the local graph: {len(list(context_graph.nodes))}, when the initial number if {context_graph_nnode_init} and trust region is {trust_region_state.n_nodes}")
+
                     X_, Y_ = prune_baseline(X, Y, torch.tensor(
                         list(context_graph.nodes)).to(X))
                     # the context graph changed -- need to re-compute the eigenbasis for the next BO iteration.

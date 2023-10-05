@@ -13,7 +13,7 @@ class TrustRegionState:
     batch_size: int = 1,
     n_nodes: int = 50
     n_nodes_min: int = 5
-    n_nodes_max: int = 100
+    n_nodes_max: Any = np.inf
     failure_counter: int = 0
     fail_tol: int = float("nan")  # Note: Post-initialized
     success_counter: int = 0
@@ -40,7 +40,7 @@ def update_state(state: "TrustRegionState", Y_next: torch.Tensor,):
         state.success_counter = 0
     elif state.failure_counter == state.fail_tol:  # Shrink trust region
 
-        state.restart_triggered = True
+        #state.restart_triggered = True ## Not supposed to restart here
         state.n_nodes //= state.trust_region_multiplier
         state.failure_counter = 0
 
@@ -87,11 +87,8 @@ def restart(
 
     # initialize a new state
     if use_trust_region:
-        current_failtol = default_options["fail_tol"]
-        current_tr = default_options["trust_region_multiplier"]
         trust_region_state = TrustRegionState(
             dim=1,
-            n_nodes_max=init_context_graph_size,
             batch_size=batch_size,
             **default_options
         )
