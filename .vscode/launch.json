@@ -9,7 +9,7 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/main.py",
-            "args": ["--config", "ba"],
+            "args": ["--config", "test_dfs_bfs"],
             "console": "integratedTerminal",
             "justMyCode": true
         }

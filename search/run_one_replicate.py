@@ -206,8 +206,7 @@ def run_one_replication(
         def inverse_index_remapper(x): return torch.tensor(
             [inverse_map_dict[int(i)] for i in x]).to(x).reshape(-1, x.shape[-1])
     elif label == "dfs" or label == "bfs":
-        visited = set(list(X_.numpy().flatten()))
-        list_stacks = []
+        list_stacks = [] ## Here want a list of parallel stacks to handle batch size, should be List[List[int]]
         for i in range(batch_size):
             neighbors_current = generate_neighbors(
                     int(X_[-i]),
@@ -273,15 +272,15 @@ def run_one_replication(
                     i + seed).choice(len(neighbors_of_best), batch_size, )).tolist()
                 candidates = neighbors_of_best[candidate_idx]
         elif label == "dfs" or label == "bfs":
-            visited = set(list(X_.numpy().flatten()))
-            flag = 1
-            for stack in list_stacks:
-                flag *= len(stack)
-            if flag:
-                candidates = []
-                for i, stack in enumerate(list_stacks):
+            visited = set(list(X.numpy().flatten()))
+            candidates = []
+            for i, stack in enumerate(list_stacks): ## Loop through the batch proposition
+                flag = 1
+                while len(stack) > 0 and flag:
                     element = stack.pop()
                     if element not in visited:
+                        visited.add(element)
+                        flag = 0
                         neighbors_element = generate_neighbors(
                                                                 element,
                                                                 base_function.context_graph,
@@ -292,25 +291,27 @@ def run_one_replication(
                         elif label == "dfs":
                             stack = list(neighbors_element.numpy().flatten()) + stack
                         list_stacks[i] = stack
+                        candidates.append(element)
+                ## 3 cases: len(stack) == 0 or flag == 0 or (len(stack) == 0 and flag == 0)
+                if (len(stack) == 0) and (flag == 1): #Restard if stuck and no visit
+                    element = None ### To debug
+                    while element is None or element.shape[0] == 0:
+                        print(f"Restart triggered at iteration {len(X)}")
+                        n_restart += 1
+                        element, trust_region_state = restart(
+                            base_graph=base_function.context_graph,
+                            n_init=1,
+                            seed=seed + n_restart,
+                            batch_size=batch_size,
+                            use_trust_region=False,
+                            X_avoid=X,
+                            options=trust_region_kwargs,
+                        )
+                        element = element.reshape(-1, 1).to(X)
+                        X_ = torch.zeros(0, X_.shape[1]).to(X_)
+                        Y_ = torch.zeros(0, 1).to(Y_)
                     candidates.append(element)
-                candidates = torch.tensor(candidates).reshape(-1,1)
-            else: #Restard if stuck
-                candidates = None
-                while candidates is None or candidates.shape[0] == 0:
-                    print(f"Restart triggered at iteration {len(X)}")
-                    n_restart += 1
-                    candidates, trust_region_state = restart(
-                        base_graph=base_function.context_graph,
-                        n_init=n_initial_points,
-                        seed=seed + n_restart,
-                        batch_size=batch_size,
-                        use_trust_region=False,
-                        X_avoid=X,
-                        options=trust_region_kwargs,
-                    )
-                    candidates = candidates.reshape(-1, 1).to(X)
-                    X_ = torch.zeros(0, X_.shape[1]).to(X_)
-                    Y_ = torch.zeros(0, 1).to(Y_)
+            candidates = torch.tensor(candidates).reshape(-1,1)
             new_y = base_function(candidates)
             X = torch.cat([X, candidates], dim=0)
             Y = torch.cat([Y, new_y], dim=0)
