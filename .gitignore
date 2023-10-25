@@ -4,6 +4,7 @@
 /new_log_saved
 /config
 /conf_saved
+/config_ablation
 /data
 *.pyc
 *.pt
