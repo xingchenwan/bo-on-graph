@@ -77,7 +77,7 @@ def restart(
 
     candidates = []
     while patience and len(candidates) < n_init:
-        candidates = torch.from_numpy(np.random.RandomState(seed + patience).choice(
+        candidates = torch.from_numpy(np.random.choice(
             len(base_graph), n_init, replace=False),)
         if X_avoid is not None:
             candidates = filter_invalid(candidates, X_avoid.to(candidates))
