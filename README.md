@@ -30,3 +30,11 @@ run_one_replication(
     n_initial_points=10,
 )
 ```
+To run through command line, define a configuration in the folder config/config.yaml and run the command:
+```
+python main.py --config config
+```
+For example, to run the centrality experiment with BA graphs, run:
+```
+python main.py --config centrality_ba
+```
