@@ -398,6 +398,75 @@ def fit_gpytorch_model_with_constraints_bis(
         return model, loss.item()
     return model
 
+def fit_gpytorch_model_with_constraints(
+    mll, model, train_x, train_Y, train_iters: int = 100,
+    lr: float = 0.1,
+    print_interval: int = 10,
+    mu_0: float = 0.01,
+    return_loss: bool = False
+):
+    r"""Fit the GP model for the new polynomial kernel. Note that for this model,
+    we do not constrain individual ``\betas` to be non-negative and the only
+    constraint is that they sum to positive. That is:
+
+    Optimize log likelihood
+    s.t. \betaB > 0.
+
+    To solve the constrained optimization problem, we use a barrier function as
+    additional penalty term on the log likelihood to penalize violation of the
+    constraints.
+    """
+
+    # Pre-compute the Lambda (eigenvalue and their power)
+    eigen_powered = torch.cat(
+        [(model.covar_module.base_kernel.eigenvalues ** i).reshape(1, -1)
+         for i in range(model.covar_module.base_kernel.order)]
+    )  # Shape (order, n)
+
+    def mu_scheduler(current_step: int, total_step: int, mu_init: float):
+        """Simple linear annealing (to 0) for the mu (the coeffient on the barriers).
+        """
+        return (1. - (current_step / total_step)) * mu_init
+
+    with gpytorch.settings.debug(False):
+        # Includes GaussianLikelihood parameters
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+        # Learning rate scheduler
+        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=train_iters)
+        model.train()
+        model.likelihood.train()
+        for i in range(train_iters):
+            # Get the constant before the barrier function
+            mu = mu_scheduler(i, train_iters, mu_0)
+            # Zero gradients from previous iteration
+            optimizer.zero_grad()
+            # Output from model
+            output = model(train_x)
+            # Calc loss and backprop gradients
+            loss = -mll(output, model.train_targets)
+
+            # Calculate the penalty
+            constraint = [torch.sum(model.covar_module.base_kernel.beta *
+                                    eigen_powered[:, j]).reshape(-1) for j in range(eigen_powered.shape[1])]
+            constraint = torch.cat(constraint)
+            penalty = torch.log(constraint).sum()
+
+            if loss.ndim > 0:
+                loss = loss.sum()
+            if print_interval > 0 and (i + 1) % print_interval == 0:
+                print(f"Iter {i+1}/{train_iters}: "
+                      f"Loss={loss.item()}. Penalty={mu * penalty}"
+                      f"beta={model.covar_module.base_kernel.beta}")
+            loss -= mu * penalty
+            loss.backward()
+            optimizer.step()
+            lr_scheduler.step()
+    if return_loss:
+        return model, loss.item()
+    return model
+
+
 def get_acqf(
         model,
         X_baseline: Tensor,
