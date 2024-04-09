@@ -4,6 +4,7 @@
 /new_log_saved
 /conf_saved
 /config_ablation
+/notebooks
 *.pyc
 *.pt
 *.pdf
