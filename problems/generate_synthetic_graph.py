@@ -52,17 +52,17 @@ def get_synthetic_problem(
         thres = problem_kwargs.get("threshold", None)
         g, forward_dict, backward_dict = generate_jaccard(range(n_individuals), threshold=thres)
     elif random_graph_type == "real":
-        g = nx.from_edgelist(np.load("./com_edge_list.npy"))
+        g = nx.from_edgelist(np.load("./data/com_edge_list.npy"))
         dict_relabel = {}
         for index, node in enumerate(sorted(list(g.nodes))):
             dict_relabel[node] = index
         g = nx.relabel_nodes(g, dict_relabel)
     elif random_graph_type == "real_enron":
-        g = pickle.load(open('./enron_email_graph.pickle', 'rb'))
+        g = pickle.load(open('./data/enron_email_graph.pickle', 'rb'))
     elif random_graph_type == "real_twitch":
-        g = pickle.load(open('./twitch.pickle', 'rb'))
+        g = pickle.load(open('./data/twitch.pickle', 'rb'))
     elif random_graph_type == "real_fb":
-        g = pickle.load(open('./facebook.pickle', 'rb'))
+        g = pickle.load(open('./data/facebook.pickle', 'rb'))
     else:
         raise ValueError(
             f"Unknown random_graph_type = {random_graph_type}")

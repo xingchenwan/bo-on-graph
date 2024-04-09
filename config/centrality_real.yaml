@@ -1,0 +1,26 @@
+label:  ["ei_ego_network_matern", "ei_ego_network_1", "ei_ego_network_1_old", "ei_ego_network_2", "ei_ego_network_2_no_ard", "random", "local_search", "dfs", "bfs"] #["ei_ego_network_1", "ei_ego_network_1_old", "ei_ego_network_2", "ei_ego_network_2_no_ard", "random", "local_search", "dfs", "bfs"]
+save_dir: ./logs/centrality_real_local/ # [max_radius, context_graph_nnode_init, n_nodes_min, trust_region_multiplier, succ_tol, fail_tol]
+problem_name: centrality
+
+n_exp: 15
+plot:
+  n_stop: 100
+bo_settings:
+  batch_size: 1
+  max_iters: 100
+  # the maximum hop distance to the centre node when constructing the local context graph
+  max_radius: 5
+
+  # the init size of the local context graph. If None, it can be as big as the entire graph.
+  context_graph_nnode_init: 100
+  
+  tr_settings:    # settings related to the trust region on the graph search space
+    n_nodes_min: 10         # the min number of nodes in the trust region
+    trust_region_multiplier: 1.5
+    succ_tol: 10       # success tolerance
+    fail_tol: 30      # fail tolerance
+  
+problem_settings:
+  random_graph_type: ["real_enron", "real_fb", "real_twitch"] #["ba", "ws", "grid", "seed", "sbm", "set", "jaccard", "real", "real_enron", "real_fb", "real_twitch"]
+  feature_name: ["degree_centrality"]
+  n_init: 20

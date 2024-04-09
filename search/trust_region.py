@@ -22,10 +22,6 @@ class TrustRegionState:
     restart_triggered: bool = False
     trust_region_multiplier: float = 1.5
 
-    # def __post_init__(self):
-    #     self.fail_tol = 20
-
-
 def update_state(state: "TrustRegionState", Y_next: torch.Tensor,):
     if max(Y_next) > state.best_value + 1e-3 * math.fabs(state.best_value):
         state.success_counter += 1

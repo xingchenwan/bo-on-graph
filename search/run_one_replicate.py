@@ -162,7 +162,6 @@ def run_one_replication(
 
     if animation:
         plot_animation.add_candidate(X)
-        # plot_animation.make_plot(X.shape[0])
     is_moo = base_function.is_moo
     if is_moo:
         raise NotImplementedError()

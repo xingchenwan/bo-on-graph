@@ -1,0 +1,30 @@
+label:  ["ei_ego_network_matern"] #["ei_ego_network_1", "ei_ego_network_1_old", "ei_ego_network_2", "ei_ego_network_2_no_ard", "random", "local_search", "dfs", "bfs"]
+save_dir: ./logs/team_local/ # [max_radius, context_graph_nnode_init, n_nodes_min, trust_region_multiplier, succ_tol, fail_tol]
+problem_name: team_opt
+#problem_ablation: max_radius # [max_radius, context_graph_nnode_init, n_nodes_min, trust_region_multiplier, succ_tol, fail_tol]
+
+n_exp: 10
+plot:
+  n_stop: 100
+bo_settings:
+  batch_size: 1
+  max_iters: 100
+  # the maximum hop distance to the centre node when constructing the local context graph
+  max_radius: 5
+
+  # the init size of the local context graph. If None, it can be as big as the entire graph.
+  context_graph_nnode_init: 100
+  
+  tr_settings:    # settings related to the trust region on the graph search space
+    n_nodes_min: 10         # the min number of nodes in the trust region
+    trust_region_multiplier: 1.5
+    succ_tol: 10       # success tolerance
+    fail_tol: 30      # fail tolerance
+  
+problem_settings:
+  random_graph_type: "jaccard" # sbm, ba, ws
+  # SIR model settings
+  n_skills: [2, 4, 8]
+  alpha: [0.1, 1, 10]
+  n_individuals: 10
+  threshold: [0.1, 0.3, 0.5]
