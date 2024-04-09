@@ -285,7 +285,7 @@ def run_one_replication(
                                                                 base_function.context_graph,
                                                                 X_avoid=X
                                                             )
-                        if label == "dfs":
+                        if label == "bfs":
                             stack = stack + list(neighbors_element.numpy().flatten())
                         elif label == "dfs":
                             stack = list(neighbors_element.numpy().flatten()) + stack
