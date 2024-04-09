@@ -1,7 +1,7 @@
 label:  ["ei_ego_network_matern", "ei_ego_network_polynomial", "ei_ego_network_sum_inverse", "ei_ego_network_diffusion", "ei_ego_network_diffusion_no_ard", "random", "local_search", "dfs", "bfs"]
-
 save_dir: ./logs/testfunction_local/
 problem_name: test_function
+
 n_exp: 10
 plot:
   n_stop: 100

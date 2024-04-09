@@ -12,7 +12,7 @@ from gpytorch.constraints import GreaterThan, Interval
 from gpytorch.priors import GammaPrior
 from gpytorch.mlls import SumMarginalLogLikelihood, ExactMarginalLogLikelihood
 
-from .kernels import DiffusionGraphKernel, PolynomialKernel, PolynomialKernelOld, MaternKernel
+from .kernels import DiffusionGraphKernel, PolynomialKernel, SumInverseKernel, MaternKernel
 from .utils import eigendecompose_laplacian, local_search, fit_gpytorch_model, filter_invalid, gen_k_fold_cv_folds
 from botorch.acquisition import (ExpectedImprovement,
                                  NoisyExpectedImprovement,
@@ -24,7 +24,7 @@ from botorch.sampling.normal import SobolQMCNormalSampler
 from math import log
 import botorch
 from botorch.utils.transforms import standardize
-from search.utils import binary_search, compute_penalty
+from search.utils import binary_search
 
 def initialize_model(
         train_X: torch.Tensor,
@@ -132,7 +132,7 @@ def initialize_model(
         base_model_class = FixedNoiseGP if (
             use_fixed_noise and not torch.isnan(train_Yvar).any()) else SingleTaskGP
         covar_kwargs = covar_kwargs or {}
-        if covar_type in ["polynomial", "diffusion", "polynomial_old", "matern"]:
+        if covar_type in ["polynomial", "diffusion", "sum_inverse", "matern"]:
             if covar_type == "polynomial":
                 base_covar_class = PolynomialKernel
             elif covar_type == "diffusion":
@@ -140,13 +140,13 @@ def initialize_model(
             elif covar_type == "matern":
                 base_covar_class = MaternKernel
             else:
-                base_covar_class = PolynomialKernelOld
+                base_covar_class = SumInverseKernel
             order = covar_kwargs.get("order", None)
             # when order is not explicitly specified,
             if covar_type == "diffusion":
                 order = min(
                     order, train_X.shape[-2]) if order else len(context_graph)
-            elif covar_type in ["polynomial", "polynomial_old"]:
+            elif covar_type in ["polynomial", "sum_inverse"]:
                 if order == None:
                     order = min(5, nx.radius(context_graph))
                 
@@ -577,7 +577,7 @@ if __name__ == "__main__":
     import numpy as np
     import seaborn as sns
     from search.utils import eigendecompose_laplacian
-    from search.kernels import DiffusionGraphKernel, PolynomialKernel, PolynomialKernelNew
+    from search.kernels import DiffusionGraphKernel, PolynomialKernel
 
     n = 100
     base_problem = get_synthetic_problem(

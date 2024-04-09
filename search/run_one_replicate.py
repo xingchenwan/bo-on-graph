@@ -128,18 +128,6 @@ def run_one_replication(
             base_function.obj_func,
             save_path=os.path.join(save_path, "animations")
         )
-    # if seed == 9:
-    #     all_X = torch.arange(len(base_function.context_graph)).to(torch.float)
-    #     all_Y = base_function(all_X.reshape(-1, 1))
-    #     eigenvals, eigenvecs = eigendecompose_laplacian(base_function.context_graph)
-    #     plt.subplot(121)
-    #     plt.title("Function signal")
-    #     plt.stem(torch.abs(eigenvecs.T @ all_Y))
-    #     plt.subplot(122)
-    #     plt.title("Eigenvalues")
-    #     plt.stem(eigenvals.flatten())
-    #     plt.savefig(os.path.join(save_path, "plot_signal.png"))
-    #     plt.clf()
 
     # generate initial data
     n_initial_points = n_initial_points or 20
@@ -180,13 +168,10 @@ def run_one_replication(
 
     # get the context graph
     if "ego_network" in label:
-        # context_graph = nx.ego_graph(
-        #     base_function.context_graph, best_loc.item(), radius=ego_radius)
-        
         context_graph = get_context_graph(
             base_function.context_graph,
             best_loc.item(),
-            nnodes=context_graph_nnode_init, ###here should be updated to the trust region number of nodes
+            nnodes=context_graph_nnode_init,
         )
         X_, Y_ = prune_baseline(X_, Y_, torch.tensor(
             list(context_graph.nodes),).to(X_))
@@ -204,7 +189,7 @@ def run_one_replication(
         def inverse_index_remapper(x): return torch.tensor(
             [inverse_map_dict[int(i)] for i in x]).to(x).reshape(-1, x.shape[-1])
     elif label == "dfs" or label == "bfs":
-        list_stacks = [] ## Here want a list of parallel stacks to handle batch size, should be List[List[int]]
+        list_stacks = []
         for i in range(batch_size):
             neighbors_current = generate_neighbors(
                     int(X_[-i]),
@@ -290,9 +275,9 @@ def run_one_replication(
                             stack = list(neighbors_element.numpy().flatten()) + stack
                         list_stacks[i] = stack
                         candidates.append(element)
-                ## 3 cases: len(stack) == 0 or flag == 0 or (len(stack) == 0 and flag == 0)
-                if (len(stack) == 0) and (flag == 1): #Restard if stuck and no visit
-                    element = None ### To debug
+
+                if (len(stack) == 0) and (flag == 1): # Restard if stuck and no visit
+                    element = None
                     while element is None or element.shape[0] == 0:
                         print(f"Restart triggered at iteration {len(X)}")
                         n_restart += 1
@@ -358,7 +343,7 @@ def run_one_replication(
                         train_X=X_mapped,
                         train_Y=Y_,
                         context_graph=context_graph,
-                        covar_type="polynomial_old",
+                        covar_type="sum_inverse",
                         covar_kwargs = {"order": order,}, ## No order means context graph size
                         ard=True,
                         use_fixed_noise=False,
@@ -486,8 +471,6 @@ def run_one_replication(
                         n_hop_max=max_radius ###here should be updated to the trust region number of nodes
                     )
                     
-                    #print(f"Here is the size of the local graph: {len(list(context_graph.nodes))}, when the initial number if {context_graph_nnode_init} and trust region is {trust_region_state.n_nodes}")
-
                     X_, Y_ = prune_baseline(X, Y, torch.tensor(
                         list(context_graph.nodes)).to(X))
                     # the context graph changed -- need to re-compute the eigenbasis for the next BO iteration.
@@ -517,19 +500,6 @@ def run_one_replication(
                 }
                 with open(os.path.join(save_path, f"{str(seed).zfill(4)}_{label}.pt"), "wb") as fp:
                     torch.save(output_dict, fp)
-            # Do something with model
-
-            # if problem_kwargs["plot_spectral"] and ((i+1) % 20 == 0):
-            #     epsilon = 1e-6
-            #     x_spectral = torch.linspace(0,2,500)[1:]
-            #     y_spectral = torch.stack(
-            #         [x_spectral ** i for i in range(model.covar_module.base_kernel.order)]
-            #     )
-
-            #     y_spectral = (torch.einsum("ij,i->ij", y_spectral, model.covar_module.base_kernel.lengthscale.squeeze(0)) + epsilon).sum(0).squeeze()
-            #     torch.save(y_spectral, f"./plot_spectral/exp5/values_{i}.pt")
-                
-
 
     # Save the final output
     if hasattr(base_function, "ground_truth"):

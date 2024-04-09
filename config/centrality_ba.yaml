@@ -1,7 +1,6 @@
 label:  ["ei_ego_network_matern", "ei_ego_network_polynomial", "ei_ego_network_sum_inverse", "ei_ego_network_diffusion", "ei_ego_network_diffusion_no_ard", "random", "local_search", "dfs", "bfs"]
-save_dir: ./logs/centrality_local/ # [max_radius, context_graph_nnode_init, n_nodes_min, trust_region_multiplier, succ_tol, fail_tol]
+save_dir: ./logs/centrality_local/
 problem_name: centrality
-#problem_ablation: max_radius # [max_radius, context_graph_nnode_init, n_nodes_min, trust_region_multiplier, succ_tol, fail_tol]
 
 n_exp: 10
 plot:

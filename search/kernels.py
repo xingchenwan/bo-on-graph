@@ -131,7 +131,7 @@ class PolynomialKernel(DiffusionGraphKernel):
         return res
 
 
-class PolynomialKernelOld(DiffusionGraphKernel):
+class SumInverseKernel(DiffusionGraphKernel):
 
     has_lengthscale = True
 
@@ -224,74 +224,6 @@ class MaternKernel(DiffusionGraphKernel):
         if diag:
             res = torch.diagonal(res, dim1=-1, dim2=-2)
         return res
-
-
-class PolynomialKernelNew(DiffusionGraphKernel):
-    """
-    Implementation of the new kernel -- it has the same mathematical form as the previous
-    polynomial kernel, but the non-negative constraints are on the sum of eigenvalues
-    and the learned parameters (rather than individually). This allows non-low-pass
-    behaviour to be learnt.
-    """
-    # Note that as the \betas now can be negative and cannot
-    # be interpreted as lengthscales.
-
-    has_lengthscale = True
-
-    def __init__(self, beta_prior=None, **kwargs):
-        super().__init__(**kwargs)
-
-
-        default_beta_prior = gpytorch.priors.NormalPrior(
-            torch.zeros(self.order), 1e-1*torch.ones(self.order))
-        beta_prior = beta_prior if beta_prior is not None else default_beta_prior
-        # Note that we require the betas to be initialized as non-negative (but
-        # individual betas are allowed to go negative during optimization), so
-        # we set the prior on the sqrt of beta.
-        self.register_prior(
-            "beta_prior", beta_prior, lambda m: m.beta
-        )
-        # Set random initialization by sampling from the prior
-        init_beta = torch.abs(beta_prior.sample())
-        self.register_parameter(
-            name="beta", parameter=torch.nn.Parameter(init_beta)
-        )
-
-    def get_dist(self):
-        # Note the definition of the B matrix here -- we directly power the eigenvalues
-        # without the inversion in the previous iteration.
-        eigen_powered = torch.cat(
-            [(self.eigenvalues ** i).reshape(1, -1) for i in range(self.order)]
-        )  # shape: (self.order, n)
-        # This is the B matrix
-        dists = torch.einsum("ij,i->ij", eigen_powered,
-                             self.beta.squeeze(0))
-        # Sum B matrix
-        dists = torch.diag(dists.sum(0).squeeze())
-        dists *= self.eigenvalues.shape[0] / torch.sum(dists)
-        # print(dists, self.beta)
-        return dists
-
-    def forward(self, x1, x2, diag=False, **params):
-        if self.eigenvalues is None or self.eigenbasis is None:
-            raise ValueError(
-                "Eigendecomposition of Laplacian is not performed!")
-        assert x1.shape[-1] == 1 and x2.shape[-1] == 1
-        x1_ = x1.long().squeeze(-1)
-        x2_ = x2.long().squeeze(-1)
-        # b1 x ...x bn x n x N
-        subvec1 = self.eigenbasis[x1_, ...]
-        # b1 x ...x bn x m x N
-        subvec2 = self.eigenbasis[x2_, ...]
-        dists = self.get_dist()     # N x N
-        self._dists = torch.diagonal(dists.clone(), 0)
-
-        tmp = torch.einsum("...ij,jj->...ij", subvec1, dists)
-        res = torch.einsum("...ij,...kj->...ik", tmp, subvec2)
-        if diag:
-            res = torch.diagonal(res, dim1=-1, dim2=-2)
-        return res
-
 
 if __name__ == "__main__":
     import sys
