@@ -27,15 +27,14 @@ supported_labels = [
     "random",
     "local_search",
     "ei",
-    "ei_ego_network_1",
-    "ei_ego_network_1_old",
+    "ei_ego_network_polynomial",
+    "ei_ego_network_sum_inverse",
     "dfs",
     "bfs",
-    "ei_ego_network_2",
-    "ei_ego_network_2_no_ard",
+    "ei_ego_network_diffusion",
+    "ei_ego_network_diffusion_no_ard",
     "ei_ego_network_matern",
 ]
-
 
 def run_one_replication(
         label: str,
@@ -339,7 +338,7 @@ def run_one_replication(
             else:
                 # create remappers to convert raw X into indices in terms of the new context graph
                 X_mapped = index_remapper(X_).to(**tkwargs)
-                if label == "ei_ego_network_1":
+                if label == "ei_ego_network_polynomial":
                     model, mll, cached_eigenbasis = initialize_model(
                         train_X=X_mapped,
                         train_Y=Y_,
@@ -354,7 +353,7 @@ def run_one_replication(
                         use_cached_eigenbasis=use_cached_eigenbasis,
                         optim_kwargs=model_optim_kwargs,
                     )
-                elif label == "ei_ego_network_1_old":
+                elif label == "ei_ego_network_sum_inverse":
                     model, mll, cached_eigenbasis = initialize_model(
                         train_X=X_mapped,
                         train_Y=Y_,
@@ -369,7 +368,7 @@ def run_one_replication(
                         use_cached_eigenbasis=use_cached_eigenbasis,
                         optim_kwargs=model_optim_kwargs,
                     )
-                elif label == "ei_ego_network_2_no_ard":
+                elif label == "ei_ego_network_diffusion_no_ard":
                     model, mll, cached_eigenbasis = initialize_model(
                         train_X=X_mapped,
                         train_Y=Y_,
@@ -384,7 +383,7 @@ def run_one_replication(
                         use_cached_eigenbasis=use_cached_eigenbasis,
                         optim_kwargs=model_optim_kwargs,
                     )
-                elif label == "ei_ego_network_2":
+                elif label == "ei_ego_network_diffusion":
                     model, mll, cached_eigenbasis = initialize_model(
                         train_X=X_mapped,
                         train_Y=Y_,

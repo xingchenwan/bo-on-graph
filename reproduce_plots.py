@@ -10,21 +10,20 @@ matplotlib.rcParams.update({'font.size': 15})
 supported_labels = [
     "random",
     "local_search",
-    "ei",
-    "ei_ego_network_1",
-    "ei_ego_network_1_old",
+    "ei_ego_network_polynomial",
+    "ei_ego_network_sum_inverse",
     "dfs",
     "bfs",
-    "ei_ego_network_2",
-    "ei_ego_network_2_no_ard",
+    "ei_ego_network_diffusion",
+    "ei_ego_network_diffusion_no_ard",
     "ei_ego_network_matern"
 ]
-# cycler('color', ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']))
-d_color = {"ei_ego_network_1":"#1f77b4", "ei_ego_network_2":"#8c564b", "random":"#ff7f0e",
-           "local_search":"#2ca02c", "dfs": "#d62728", "bfs": "#9467bd", "ei_ego_network_1_old":"#e377c2",
-           "ei_ego_network_2_no_ard":"#7f7f7f", "ei_ego_network_matern":'#bcbd22'}
-d_label = {"ei_ego_network_1":"BO_Poly", "ei_ego_network_1_old":"BO_SumInverse",
-           "ei_ego_network_2":"BO_Diff_ARD", "ei_ego_network_2_no_ard":"BO_Diff", 
+
+d_color = {"ei_ego_network_polynomial":"#1f77b4", "ei_ego_network_diffusion":"#8c564b", "random":"#ff7f0e",
+           "local_search":"#2ca02c", "dfs": "#d62728", "bfs": "#9467bd", "ei_ego_network_sum_inverse":"#e377c2",
+           "ei_ego_network_diffusion_no_ard":"#7f7f7f", "ei_ego_network_matern":'#bcbd22'}
+d_label = {"ei_ego_network_polynomial":"BO_Poly", "ei_ego_network_sum_inverse":"BO_SumInverse",
+           "ei_ego_network_diffusion":"BO_Diff_ARD", "ei_ego_network_diffusion_no_ard":"BO_Diff", 
            "random":"Random", "local_search":"Local search", "dfs": "Dfs", "bfs": "Bfs",
            "ei_ego_network_matern":"BO_Matern"}
 

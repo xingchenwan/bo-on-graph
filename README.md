@@ -19,7 +19,7 @@ from search.run_one_replicate import run_one_replication
 save_dir = "./logs/synthetic/"
 seed = 0
 problem_name = "small_ba_betweenness"       # defines the problem
-label = "ei_ego_network_1"                  # defines the method
+label = "ei_ego_network_polynomial"                  # defines the method
 
 run_one_replication(
     label,

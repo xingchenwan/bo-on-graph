@@ -40,10 +40,6 @@ def create_path(save_path, problem_name, problem_kwargs, bo_kwargs):
     save_path = os.path.join(save_dir, s)
     return save_path
 
-
-#d_label = {"ei_ego_network_1":"bo", "ei_ego_network_2":"bo_2", "random":"random", "local_search":"local_search", "dfs":"dfs", "bfs":"bfs"}
-
-## TODO Manage option for gpu
 if __name__ == "__main__":
     OVERWRITE = True
     # parse arguments
