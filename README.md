@@ -1,5 +1,18 @@
-# Bayesian optimization on graphs
+# [NeurIPS 2023] Bayesian Optimisation of Functions on Graphs
 
+Code repository for NeurIPS 2023 paper [Bayesian Optimisation of Functions on Graphs](https://openreview.net/forum?id=UuNd9A6noD).
+
+If you find the paper or the codebase useful to your research, please cite:
+```
+@inproceedings{
+wan2023bayesian,
+title={Bayesian Optimisation of Functions on Graphs},
+author={Xingchen Wan and Pierre Osselin and Henry Kenlay and Binxin Ru and Michael A Osborne and Xiaowen Dong},
+booktitle={Thirty-seventh Conference on Neural Information Processing Systems},
+year={2023},
+url={https://openreview.net/forum?id=UuNd9A6noD}
+}
+```
 
 ## Create virtual env & install dependencies
 ```
